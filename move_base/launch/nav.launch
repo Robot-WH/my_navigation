@@ -1,0 +1,14 @@
+<launch>
+  <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen" clear_params="true">
+    <!-- 这里通过ns指定了命名空间,实际命名空间为 ~/ns -->
+    <rosparam file="$(find move_base)/params/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find move_base)/params/costmap_common_params.yaml" command="load" ns="local_costmap" />
+    <!-- 下面加载的参数都在 move_base节点的私有命名空间中 -->
+    <rosparam file="$(find move_base)/params/local_costmap_params.yaml" command="load" />
+    <rosparam file="$(find move_base)/params/global_costmap_params.yaml" command="load" />
+    <rosparam file="$(find move_base)/params/move_base_params.yaml" command="load" />
+    <rosparam file="$(find move_base)/params/global_planner_params.yaml" command="load" />
+    <rosparam file="$(find move_base)/params/dwa_local_planner_params.yaml" command="load" />
+  </node>
+</launch>
+
