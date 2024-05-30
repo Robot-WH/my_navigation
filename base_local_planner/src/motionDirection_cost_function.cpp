@@ -29,6 +29,9 @@ double MotionDirectionCostFunction::scoreTrajectory(Trajectory &traj) {
     } else {
       target_idx = target_poses_.size() / 10;  
     }
+    if (target_idx < 15) {
+      target_idx = 15;  
+    }
   } 
   else {
     // std::cout << "到末端了!!!!!!!!" << std::endl;
