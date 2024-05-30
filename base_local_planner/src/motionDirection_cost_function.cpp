@@ -21,12 +21,20 @@ double MotionDirectionCostFunction::scoreTrajectory(Trajectory &traj) {
   // 以目标轨迹1 / 3 位置处的点作为目标点 
   int target_idx = 1;
   if (target_poses_.size() >= 40) {
-    std::cout << "target_poses_.size(): " << target_poses_.size() << std::endl;
-    target_idx = target_poses_.size() / 3;  
-  } else {
-    std::cout << "到末端了!!!!!!!!" << std::endl;
+    // std::cout << "target_poses_.size(): " << target_poses_.size() << std::endl;
+    if (traj.xv_ > 0.2) {
+      target_idx = target_poses_.size() / 3;  
+    } else if (traj.xv_ > 0.1) {
+      target_idx = target_poses_.size() / 5;  
+    } else {
+      target_idx = target_poses_.size() / 10;  
+    }
+  } 
+  else {
+    // std::cout << "到末端了!!!!!!!!" << std::endl;
     target_idx = target_poses_.size() - 1;  
   }
+
   const auto& target_point = target_poses_[target_idx];
   std::cout << "target_point x: " << target_point.pose.position.x  << ",y: " << target_point.pose.position.y  << std::endl; 
   // 获取该轨迹末端的位姿

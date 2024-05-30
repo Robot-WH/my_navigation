@@ -102,4 +102,4 @@ global_costmap:
   #cost_scaling_factor and inflation_radius were now moved to the inflation_layer ns
   inflation_layer:
     cost_scaling_factor:  5  # exponential rate at which the obstacle cost drops off (default: 10)
-    inflation_radius:    0.4  # max. distance from an obstacle at which costs are incurred for planning paths.
+    inflation_radius:    0.5  # max. distance from an obstacle at which costs are incurred for planning paths.

@@ -237,7 +237,7 @@ namespace dwa_local_planner {
     } else {
       if (reverse_) {
         static uint8_t reverse_time = 0;
-        if (reverse_time > 5) {
+        if (reverse_time > 8) {
           reverse_ = false;  
           dp_->disableReverse();   
           reverse_time = 0;
