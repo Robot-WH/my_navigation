@@ -1,6 +1,5 @@
 <launch>
-  <param name="ConfigPath" value="$(find calib_fusion_2d)/config/param.yaml" />
-  
+  <param name="ConfigPath" value="$(find calib_fusion_2d)/config/gazebo_param.yaml" />
   <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen" clear_params="true">
     <!-- 这里通过ns指定了命名空间,实际命名空间为 ~/ns -->
     <rosparam file="$(find move_base)/params/costmap_common_params.yaml" command="load" ns="global_costmap" />

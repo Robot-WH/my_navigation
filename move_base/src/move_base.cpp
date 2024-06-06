@@ -44,6 +44,7 @@
 #include <geometry_msgs/Twist.h>
 
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <yaml-cpp/yaml.h>
 
 namespace move_base {
 
@@ -61,6 +62,16 @@ namespace move_base {
 
     ros::NodeHandle private_nh("~");
     ros::NodeHandle nh;
+
+    std::string config_path; 
+    nh.getParam("ConfigPath", config_path);
+    std::cout << "ConfigPath: " << config_path << "\n"; 
+    YAML::Node yaml = YAML::LoadFile(config_path);
+
+    rot_scale_ = yaml["extrinsic"]["odom"]["prime_laser"]["rot_scale"].as<float>();
+    trans_scale_ = yaml["extrinsic"]["odom"]["prime_laser"]["trans_scale"].as<float>();
+    std::cout << "rot_scale: " << rot_scale_ << "\n";
+    std::cout << "trans_scale: " << trans_scale_ << "\n";
 
     recovery_trigger_ = PLANNING_R;
 
@@ -914,6 +925,11 @@ namespace move_base {
                            cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z );
           last_valid_control_ = ros::Time::now();
           //make sure that we send the velocity command to the base
+          cmd_vel.angular.z /= rot_scale_;
+          cmd_vel.linear.x /= trans_scale_;
+          cmd_vel.linear.y /= trans_scale_;
+          cmd_vel.linear.z /= trans_scale_;
+
           vel_pub_.publish(cmd_vel);
           if(recovery_trigger_ == CONTROLLING_R)
             recovery_index_ = 0;

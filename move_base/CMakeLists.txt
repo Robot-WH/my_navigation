@@ -53,6 +53,7 @@ add_library(move_base
 target_link_libraries(move_base
     ${Boost_LIBRARIES}
     ${catkin_LIBRARIES}
+    yaml-cpp
     )
 add_dependencies(move_base ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
@@ -73,6 +74,16 @@ install(
     TARGETS
         move_base
     DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+)
+
+install(
+  DIRECTORY launch
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
+
+install(
+  DIRECTORY params
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 
 ## Mark cpp header files for installation
