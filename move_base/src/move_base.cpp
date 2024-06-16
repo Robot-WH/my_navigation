@@ -843,7 +843,7 @@ namespace move_base {
     }
 
     //if we have a new plan then grab it and give it to the controller
-    if(new_global_plan_){
+    if(new_global_plan_) {
       //make sure to set the new plan flag to false
       new_global_plan_ = false;
 
@@ -920,7 +920,7 @@ namespace move_base {
         {
          boost::unique_lock<costmap_2d::Costmap2D::mutex_t> lock(*(controller_costmap_ros_->getCostmap()->getMutex()));
         // 进行局部规划 
-        if(tc_->computeVelocityCommands(cmd_vel)){
+        if(tc_->computeVelocityCommands(cmd_vel)) {
           ROS_DEBUG_NAMED( "move_base", "Got a valid command from the local planner: %.3lf, %.3lf, %.3lf",
                            cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z );
           last_valid_control_ = ros::Time::now();
