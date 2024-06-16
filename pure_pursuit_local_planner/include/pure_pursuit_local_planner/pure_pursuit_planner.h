@@ -122,7 +122,7 @@ namespace pure_pursuit_local_planner {
       geometry_msgs::PoseStamped front_target_point_in_base_; 
 
       tf2_ros::Buffer* tf_;
-      float linear_v_;  
+      float linear_v_max_;  
   };
 };
 #endif

@@ -83,7 +83,7 @@ namespace pure_pursuit_local_planner {
   }
 
   PurePursuitPlanner::PurePursuitPlanner(std::string name, tf2_ros::Buffer* tf, base_local_planner::LocalPlannerUtil *planner_util) :
-      tf_(tf), linear_v_(0.3),
+      tf_(tf), linear_v_max_(0.2),
       planner_util_(planner_util),
       obstacle_costs_(planner_util->getCostmap()),
       path_costs_(planner_util->getCostmap()),
@@ -193,20 +193,26 @@ namespace pure_pursuit_local_planner {
       }
     }
     if (update) {
+      int num = global_plan_.size() - 1;
+      std::cout << " 更新前视点, global_plan_.size(): " <<  num << "  ,front_target_point_index_: " << front_target_point_index_ << "\n"; 
       // 向后寻找新的前视点  
-      ++front_target_point_index_;
-
-      for (; front_target_point_index_ < global_plan_.size(); ++front_target_point_index_) {
-        float diff_x = global_plan_[front_target_point_index_].pose.position.x - curr_pos_x;
-        float diff_y = global_plan_[front_target_point_index_].pose.position.y - curr_pos_y;
-        float distance = std::sqrt(diff_x * diff_x + diff_y * diff_y);
-        if (distance > front_view_distance_) {
-          std::cout << "找到新的前视点，front_target_point_index_： " << front_target_point_index_
-            << ", distance: " << distance << "\n";  
-          break;
+      if (front_target_point_index_  < num) {
+        
+        ++front_target_point_index_;
+        std::cout << "++front_target_point_index_: " << front_target_point_index_ << "\n"; 
+         for (; front_target_point_index_ < global_plan_.size() - 1; ++front_target_point_index_) {
+          float diff_x = global_plan_[front_target_point_index_].pose.position.x - curr_pos_x;
+          float diff_y = global_plan_[front_target_point_index_].pose.position.y - curr_pos_y;
+          float distance = std::sqrt(diff_x * diff_x + diff_y * diff_y);
+          if (distance > front_view_distance_) {
+            std::cout << "找到新的前视点，front_target_point_index_： " << front_target_point_index_
+              << ", distance: " << distance << "\n";  
+            break;
+          }
         }
       }
     }
+    std::cout << "front_target_point_index_: " << front_target_point_index_ << "\n"; 
     // 获得前视点位于当前机器人坐标系下的坐标
     front_target_point_in_base_ = goalToBaseFrame(global_plan_[front_target_point_index_]); 
   }
@@ -259,10 +265,17 @@ bool PurePursuitPlanner::CalculateMotion(geometry_msgs::Twist& cmd_vel) {
   float l_2 = front_target_point_in_base_.pose.position.x * front_target_point_in_base_.pose.position.x 
                   + front_target_point_in_base_.pose.position.y * front_target_point_in_base_.pose.position.y; 
   float r = l_2 / (2 * front_target_point_in_base_.pose.position.y);  
+
+  // 更新速度，与目标点越近速度越慢  
+  float linear_v = linear_v_max_; 
+  if (l_2 < 0.01) {
+    linear_v = 0.5 * l_2; 
+  }
+  
   // 注意：这里假设linear_v_已经被正确设置，并且不为0  
-  float rotation_v = linear_v_ / r;    
+  float rotation_v = linear_v / r;    
   // 设置cmd_vel的线速度和角速度  
-  cmd_vel.linear.x = linear_v_;  // 设置线速度  
+  cmd_vel.linear.x = linear_v;  // 设置线速度  
   cmd_vel.angular.z = rotation_v; // 设置角速度（假设是绕Z轴旋转）  
   return true;  
 }
