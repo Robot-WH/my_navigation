@@ -825,8 +825,11 @@ namespace move_base {
     as_->publishFeedback(feedback);     //  这里是不是会发送给局部规划模块???????????????????
 
     //check to see if we've moved far enough to reset our oscillation timeout
+    // 就是说如果移动了足够远的距离就不会认为是振荡  从而触发恢复  
+    // 振荡就是来回的移动抽搐，以及持续的旋转 
     if(distance(current_position, oscillation_pose_) >= oscillation_distance_)
     {
+      std::cout << "distance(current_position, oscillation_pose_) >= oscillation_distance_" << std::endl;
       last_oscillation_reset_ = ros::Time::now();
       oscillation_pose_ = current_position;
 
@@ -912,6 +915,7 @@ namespace move_base {
         if(oscillation_timeout_ > 0.0 &&
             last_oscillation_reset_ + ros::Duration(oscillation_timeout_) < ros::Time::now())
         {
+          std::cout << "oscillation_timeout !!!!!!!!!!!!!!!!!!!!, oscillation_timeout_: " << oscillation_timeout_ << "\n";  
           publishZeroVelocity();
           state_ = CLEARING;
           recovery_trigger_ = OSCILLATION_R;

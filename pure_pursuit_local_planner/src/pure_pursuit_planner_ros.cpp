@@ -112,21 +112,7 @@ namespace pure_pursuit_local_planner {
   }
 
   bool PurePursuitPlannerROS::isGoalReached() {
-    if (!initialized_) {
-      ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
-      return false;
-    }
-    if (!costmap_ros_->getRobotPose(current_pose_)) {
-      ROS_ERROR("Could not get robot pose");
-      return false;
-    }
-
-    if(latchedStopRotateController_.isGoalReached(&planner_util_, odom_helper_, current_pose_)) {
-      ROS_INFO("Goal reached");
-      return true;
-    } else {
-      return false;
-    }
+    return dp_->IsGoalReached();   
   }
 
 

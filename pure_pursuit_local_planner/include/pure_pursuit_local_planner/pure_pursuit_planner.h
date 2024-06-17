@@ -81,6 +81,8 @@ namespace pure_pursuit_local_planner {
       void UpdateFrontTargetPoint(const float& curr_pos_x, const float& curr_pos_y);
 
       bool CalculateMotion(geometry_msgs::Twist& cmd_vel);
+
+      bool IsGoalReached();  
     private:
       enum class State {begin_align, mid_run, end_align, finish} state_;
       base_local_planner::LocalPlannerUtil *planner_util_;

@@ -318,6 +318,7 @@ bool PurePursuitPlanner::CalculateMotion(geometry_msgs::Twist& cmd_vel) {
     } else if (yaw < -0.1745) {
       rotation_v = -0.5;  
     } else if (std::fabs(yaw) < 0.01745) {    // 角度 < 1时  对齐完成
+      std::cout << "导航结束，到达目标点!" << "\n";  
       state_ = State::finish;    // 本次导航结束
     } else {
       rotation_v = 3 * yaw;        // P控制  
@@ -327,6 +328,14 @@ bool PurePursuitPlanner::CalculateMotion(geometry_msgs::Twist& cmd_vel) {
   cmd_vel.linear.x = linear_v;  // 设置线速度  
   cmd_vel.angular.z = rotation_v; // 设置角速度（假设是绕Z轴旋转）  
   return true;  
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+bool PurePursuitPlanner::IsGoalReached() {
+  if (state_ == State::finish) {
+    return true;
+  }
+  return false;   
 }
 
 };
