@@ -283,13 +283,19 @@ bool PurePursuitPlanner::CalculateMotion(geometry_msgs::Twist& cmd_vel) {
     // 更新速度，与目标点越近速度越慢  
     // 这里是0.1m 内  开始减速
     if (l_2 < 0.01) {
-      linear_v = 10 * l_2; 
+      // 继续分段
+      if (l_2 < 0.0001) {     // 0.01m距离时  
+        linear_v = 100 * l_2; 
+      } else {
+        linear_v = std::sqrt(l_2); 
+      }
     } else {
       linear_v = linear_v_max_; 
     }
     // 确定角速度
     // 确保front_target_point_in_base_.pose.position.y不为0，避免除以0的错误  
-    if (front_target_point_in_base_.pose.position.y  == 0) {  
+    // 线速度很慢时关闭旋转
+    if (front_target_point_in_base_.pose.position.y  == 0 || linear_v < 0.05) {  
       rotation_v = 0; 
     } else {
       float r = l_2 / (2 * front_target_point_in_base_.pose.position.y);  
@@ -297,7 +303,7 @@ bool PurePursuitPlanner::CalculateMotion(geometry_msgs::Twist& cmd_vel) {
     }
     std::cout << "linear_v: " << linear_v << "\n"; 
     // 如果速度足够小，进入下一个状态  
-    if (linear_v < 0.001) {
+    if (linear_v < 0.003) {
       state_ = State::end_align;
     }
   } else if (state_ == State::end_align) {
@@ -337,5 +343,4 @@ bool PurePursuitPlanner::IsGoalReached() {
   }
   return false;   
 }
-
 };
