@@ -895,7 +895,7 @@ namespace move_base {
 
         //check to see if we've reached our goal
         // 这里面通过costmap_ros_获取机器人的位置，最后也是通过tf获取
-        if(tc_->isGoalReached()){
+        if(tc_->isGoalReached()) {
           ROS_DEBUG_NAMED("move_base","Goal reached!");
           resetState();
 

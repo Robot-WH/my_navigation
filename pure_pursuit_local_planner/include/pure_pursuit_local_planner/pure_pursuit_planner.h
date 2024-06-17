@@ -82,6 +82,7 @@ namespace pure_pursuit_local_planner {
 
       bool CalculateMotion(geometry_msgs::Twist& cmd_vel);
     private:
+      enum class State {begin_align, mid_run, end_align, finish} state_;
       base_local_planner::LocalPlannerUtil *planner_util_;
 
       double stop_time_buffer_; ///< @brief How long before hitting something we're going to enforce that the robot stop
