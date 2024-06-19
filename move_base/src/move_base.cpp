@@ -110,7 +110,7 @@ namespace move_base {
     //like nav_view and rviz
     ros::NodeHandle simple_nh("move_base_simple");
     goal_sub_ = simple_nh.subscribe<geometry_msgs::PoseStamped>("goal", 1, boost::bind(&MoveBase::goalCB, this, _1));
-
+    // plan_sub_ =
     //we'll assume the radius of the robot to be consistent with what's specified for the costmaps
     private_nh.param("local_costmap/inscribed_radius", inscribed_radius_, 0.325);
     private_nh.param("local_costmap/circumscribed_radius", circumscribed_radius_, 0.46);
@@ -775,7 +775,8 @@ namespace move_base {
       ros::WallTime start = ros::WallTime::now();
 
       //the real work on pursuing a goal is done here
-      bool done = executeCycle(goal, global_plan);
+      // bool done = executeCycle(goal, global_plan);
+      bool done = executeCycle();
 
       //if we're done, then we'll return from execute
       if(done)
@@ -807,8 +808,10 @@ namespace move_base {
   {
     return hypot(p1.pose.position.x - p2.pose.position.x, p1.pose.position.y - p2.pose.position.y);
   }
-  // global_plan 没有用  
-  bool MoveBase::executeCycle(geometry_msgs::PoseStamped& goal, std::vector<geometry_msgs::PoseStamped>& global_plan){
+
+  // global_plan 没有用
+  // bool MoveBase::executeCycle(geometry_msgs::PoseStamped& goal, std::vector<geometry_msgs::PoseStamped>& global_plan){
+  bool MoveBase::executeCycle() {
     boost::recursive_mutex::scoped_lock ecl(configuration_mutex_);
     //we need to be able to publish velocity commands
     geometry_msgs::Twist cmd_vel;
@@ -820,9 +823,9 @@ namespace move_base {
     const geometry_msgs::PoseStamped& current_position = global_pose;
 
     //push the feedback out
-    move_base_msgs::MoveBaseFeedback feedback;
-    feedback.base_position = current_position;
-    as_->publishFeedback(feedback);     //  这里是不是会发送给局部规划模块???????????????????
+    // move_base_msgs::MoveBaseFeedback feedback;
+    // feedback.base_position = current_position;
+    // as_->publishFeedback(feedback);     //  这里是不是会发送给局部规划模块???????????????????
 
     //check to see if we've moved far enough to reset our oscillation timeout
     // 就是说如果移动了足够远的距离就不会认为是振荡  从而触发恢复  
@@ -964,7 +967,6 @@ namespace move_base {
           }
         }
         }
-
         break;
 
       //we'll try to clear out space with any user-provided recovery behaviors
