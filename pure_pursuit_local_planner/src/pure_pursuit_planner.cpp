@@ -306,6 +306,12 @@ bool PurePursuitPlanner::CalculateMotion(geometry_msgs::Twist& cmd_vel) {
     } else {
       float r = l_2 / (2 * front_target_point_in_base_.pose.position.y);  
       rotation_v = linear_v / r;    
+      std::cout << "rotation_v: " << rotation_v << "\n";
+      while (rotation_v > 0.7 || rotation_v < -0.7) {
+        linear_v *= 0.8;  
+        rotation_v = linear_v / r;    
+        std::cout << "降低 rotation_v: " << rotation_v << "\n";
+      }
     }
     std::cout << "linear_v: " << linear_v << "\n"; 
     // 如果速度足够小，进入下一个状态  
