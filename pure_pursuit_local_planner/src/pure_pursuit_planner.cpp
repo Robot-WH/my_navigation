@@ -185,6 +185,7 @@ void PurePursuitPlanner::UpdateFrontTargetPoint(const float& curr_pos_x, const f
   // 先判断是否需要更新前视点
   if (front_target_point_index_ >= 0) {
     std::cout << "front_target_point_index_: " << front_target_point_index_ << "\n"; 
+    std::cout << "global_plan_.size(): " <<  global_plan_.size() << "\n"; 
     // 如果当前位置距离前视点的距离小于前视距离的一半  则需要更新前视点
     float diff_x = global_plan_[front_target_point_index_].pose.position.x - curr_pos_x;
     float diff_y = global_plan_[front_target_point_index_].pose.position.y - curr_pos_y;
@@ -281,17 +282,22 @@ bool PurePursuitPlanner::CalculateMotion(geometry_msgs::Twist& cmd_vel) {
     float l_2 = front_target_point_in_base_.pose.position.x * front_target_point_in_base_.pose.position.x 
                     + front_target_point_in_base_.pose.position.y * front_target_point_in_base_.pose.position.y; 
     // 更新速度，与目标点越近速度越慢  
-    // 这里是0.1m 内  开始减速
-    if (l_2 < 0.01) {
-      // 继续分段
-      if (l_2 < 0.0001) {     // 0.01m距离时  
-        linear_v = 100 * l_2; 
-      } else {
-        linear_v = std::sqrt(l_2); 
-      }
+    if (front_target_point_in_base_.pose.position.x < 0.001) {
+      // 冲出去就停下
+      linear_v = 0;  
     } else {
-      linear_v = linear_v_max_; 
-    }
+      // 这里是0.1m 内  开始减速
+      if (l_2 < 0.01) {
+        // 继续分段
+        if (l_2 < 0.0001) {     // 0.01m距离时  
+          linear_v = 100 * l_2; 
+        } else {
+          linear_v = std::sqrt(l_2); 
+        }
+      } else {
+        linear_v = linear_v_max_; 
+      }
+  }
     // 确定角速度
     // 确保front_target_point_in_base_.pose.position.y不为0，避免除以0的错误  
     // 线速度很慢时关闭旋转

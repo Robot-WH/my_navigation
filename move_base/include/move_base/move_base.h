@@ -162,6 +162,8 @@ namespace move_base {
 
       void executeCb(const move_base_msgs::MoveBaseGoalConstPtr& move_base_goal);
 
+      void taskPathCb(const nav_msgs::Path::ConstPtr& path);
+
       bool isQuaternionValid(const geometry_msgs::Quaternion& q);
 
       bool getRobotPose(geometry_msgs::PoseStamped& global_pose, costmap_2d::Costmap2DROS* costmap);
@@ -197,6 +199,7 @@ namespace move_base {
       ros::Publisher current_goal_pub_, vel_pub_, action_goal_pub_;
       ros::Subscriber goal_sub_;
       ros::Subscriber plan_sub_;
+      ros::Publisher plan_done_pub_; 
       ros::ServiceServer make_plan_srv_, clear_costmaps_srv_;
       bool shutdown_costmaps_, clearing_rotation_allowed_, recovery_behavior_enabled_;
       double oscillation_timeout_, oscillation_distance_;

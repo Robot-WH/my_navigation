@@ -42,7 +42,7 @@
 #include <boost/thread.hpp>
 
 #include <geometry_msgs/Twist.h>
-
+#include <std_msgs/UInt8.h>  
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <yaml-cpp/yaml.h>
 
@@ -100,6 +100,7 @@ namespace move_base {
 
     //for commanding the base
     vel_pub_ = nh.advertise<geometry_msgs::Twist>("cmd_vel", 1);
+    plan_done_pub_ = nh.advertise<std_msgs::UInt8>("plan_done", 5);
     current_goal_pub_ = private_nh.advertise<geometry_msgs::PoseStamped>("current_goal", 0 );
 
     ros::NodeHandle action_nh("move_base");
@@ -110,7 +111,8 @@ namespace move_base {
     //like nav_view and rviz
     ros::NodeHandle simple_nh("move_base_simple");
     goal_sub_ = simple_nh.subscribe<geometry_msgs::PoseStamped>("goal", 1, boost::bind(&MoveBase::goalCB, this, _1));
-    // plan_sub_ =
+
+    plan_sub_ = nh.subscribe<nav_msgs::Path>("task_path", 1, &MoveBase::taskPathCb, this);
     //we'll assume the radius of the robot to be consistent with what's specified for the costmaps
     private_nh.param("local_costmap/inscribed_radius", inscribed_radius_, 0.325);
     private_nh.param("local_costmap/circumscribed_radius", circumscribed_radius_, 0.46);
@@ -674,7 +676,7 @@ namespace move_base {
     lock.unlock();
 
     current_goal_pub_.publish(goal);
-    std::vector<geometry_msgs::PoseStamped> global_plan;
+    // std::vector<geometry_msgs::PoseStamped> global_plan;
 
     ros::Rate r(controller_frequency_);
     if(shutdown_costmaps_){
@@ -804,6 +806,70 @@ namespace move_base {
     return;
   }
 
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  void MoveBase::taskPathCb(const nav_msgs::Path::ConstPtr& path) {
+    std::cout << "MoveBase::taskPathCb" << std::endl;
+    publishZeroVelocity();    // 首先让车静止  
+    // 提取全局轨迹
+    latest_plan_->clear();
+    *latest_plan_ = std::vector<geometry_msgs::PoseStamped>(path->poses.begin(), path->poses.end());
+    last_valid_plan_ = ros::Time::now();
+    new_global_plan_ = true;
+    state_ = CONTROLLING;
+
+    ros::Rate r(controller_frequency_);
+    if(shutdown_costmaps_){
+      ROS_DEBUG_NAMED("move_base","Starting up costmaps that were shut down previously");
+      planner_costmap_ros_->start();
+      controller_costmap_ros_->start();
+    }
+
+    //we want to make sure that we reset the last time we had a valid plan and control
+    last_valid_control_ = ros::Time::now();
+    last_valid_plan_ = ros::Time::now();
+    last_oscillation_reset_ = ros::Time::now();
+    planning_retries_ = 0;
+
+    ros::NodeHandle n;
+    while(n.ok()) {
+      if(c_freq_change_) {
+        ROS_INFO("Setting controller frequency to %.2f", controller_frequency_);
+        r = ros::Rate(controller_frequency_);
+        c_freq_change_ = false;
+      }
+
+      //for timing that gives real time even in simulation
+      ros::WallTime start = ros::WallTime::now();
+
+      //the real work on pursuing a goal is done here
+      bool done = executeCycle();
+
+      //if we're done, then we'll return from execute
+      if(done) {
+        std_msgs::UInt8 msg;  
+        msg.data = 1; // 发送任务完成标志
+        plan_done_pub_.publish(msg);
+        return;
+      }
+
+      //check if execution of the goal has completed in some way
+
+      ros::WallDuration t_diff = ros::WallTime::now() - start;
+      ROS_DEBUG_NAMED("move_base","Full control cycle time: %.9f\n", t_diff.toSec());
+
+      r.sleep();
+      //make sure to sleep for the remainder of our cycle time
+      if(r.cycleTime() > ros::Duration(1 / controller_frequency_) && state_ == CONTROLLING)
+        ROS_WARN("Control loop missed its desired rate of %.4fHz... the loop actually took %.4f seconds", controller_frequency_, r.cycleTime().toSec());
+    }
+
+    //wake up the planner thread so that it can exit cleanly
+
+    //if the node is killed then we'll abort and return
+    as_->setAborted(move_base_msgs::MoveBaseResult(), "Aborting on the goal because the node has been killed");
+    return;
+  }
+
   double MoveBase::distance(const geometry_msgs::PoseStamped& p1, const geometry_msgs::PoseStamped& p2)
   {
     return hypot(p1.pose.position.x - p2.pose.position.x, p1.pose.position.y - p2.pose.position.y);
@@ -859,11 +925,11 @@ namespace move_base {
       std::vector<geometry_msgs::PoseStamped>* temp_plan = controller_plan_;
 
       boost::unique_lock<boost::recursive_mutex> lock(planner_mutex_);
-      controller_plan_ = latest_plan_;
+      controller_plan_ = latest_plan_;    // latest_plan_ 就是最近这次全局规划器规划出来的路径
       latest_plan_ = temp_plan;
       lock.unlock();
       ROS_DEBUG_NAMED("move_base","pointers swapped!");
-
+      std::cout << "tc_->setPlan" << "\n";
       if(!tc_->setPlan(*controller_plan_)){
         //ABORT and SHUTDOWN COSTMAPS
         ROS_ERROR("Failed to pass global plan to the controller, aborting.");
@@ -877,7 +943,7 @@ namespace move_base {
         as_->setAborted(move_base_msgs::MoveBaseResult(), "Failed to pass global plan to the controller.");
         return true;
       }
-
+      std::cout << "tc_->setPlan   end" << "\n";
       //make sure to reset recovery_index_ since we were able to find a valid plan
       if(recovery_trigger_ == PLANNING_R)
         recovery_index_ = 0;
@@ -889,6 +955,7 @@ namespace move_base {
       case PLANNING:
         {
           boost::recursive_mutex::scoped_lock lock(planner_mutex_);
+          std::cout << "PLANNING" << "\n"; 
           runPlanner_ = true;
           planner_cond_.notify_one();
         }
@@ -898,7 +965,7 @@ namespace move_base {
       //if we're controlling, we'll attempt to find valid velocity commands
       case CONTROLLING:
         ROS_DEBUG_NAMED("move_base","In controlling state.");
-
+        std::cout << "CONTROLLING" << "\n"; 
         //check to see if we've reached our goal
         // 这里面通过costmap_ros_获取机器人的位置，最后也是通过tf获取
         if(tc_->isGoalReached()) {
@@ -913,7 +980,7 @@ namespace move_base {
           as_->setSucceeded(move_base_msgs::MoveBaseResult(), "Goal reached.");
           return true;
         }
-
+        std::cout << "isGoalReached()" << "\n"; 
         //check for an oscillation condition
         if(oscillation_timeout_ > 0.0 &&
             last_oscillation_reset_ + ros::Duration(oscillation_timeout_) < ros::Time::now())
@@ -927,6 +994,7 @@ namespace move_base {
         {
          boost::unique_lock<costmap_2d::Costmap2D::mutex_t> lock(*(controller_costmap_ros_->getCostmap()->getMutex()));
         // 进行局部规划 
+        std::cout << "computeVelocityCommands()" << "\n"; 
         if(tc_->computeVelocityCommands(cmd_vel)) {
           ROS_DEBUG_NAMED( "move_base", "Got a valid command from the local planner: %.3lf, %.3lf, %.3lf",
                            cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z );
