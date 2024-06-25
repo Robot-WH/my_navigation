@@ -330,8 +330,12 @@ bool PurePursuitPlanner::CalculateMotion(geometry_msgs::Twist& cmd_vel) {
     } else if (yaw < -0.1745) {
       rotation_v = -0.5;  
     } else if (std::fabs(yaw) < 0.01745) {    // 角度 < 1时  对齐完成
-      std::cout << "导航结束，到达目标点!" << "\n";  
-      state_ = State::finish;    // 本次导航结束
+      if (front_target_point_index_ == (global_plan_.size() - 1)) {
+        std::cout << "导航结束，到达目标点!" << "\n";  
+        state_ = State::finish;    // 本次导航结束
+      } else {
+        state_ = State::begin_align;
+      }
     } else {
       rotation_v = 3 * yaw;        // P控制  
     }

@@ -42,7 +42,6 @@
 #include <boost/thread.hpp>
 
 #include <geometry_msgs/Twist.h>
-#include <std_msgs/UInt8.h>  
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <yaml-cpp/yaml.h>
 
@@ -113,6 +112,7 @@ namespace move_base {
     goal_sub_ = simple_nh.subscribe<geometry_msgs::PoseStamped>("goal", 1, boost::bind(&MoveBase::goalCB, this, _1));
 
     plan_sub_ = nh.subscribe<nav_msgs::Path>("task_path", 1, &MoveBase::taskPathCb, this);
+    stop_task_sub_ = nh.subscribe<std_msgs::Bool>("task_stop", 1, &MoveBase::taskStopCb, this);
     //we'll assume the radius of the robot to be consistent with what's specified for the costmaps
     private_nh.param("local_costmap/inscribed_radius", inscribed_radius_, 0.325);
     private_nh.param("local_costmap/circumscribed_radius", circumscribed_radius_, 0.46);
@@ -809,6 +809,7 @@ namespace move_base {
   ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   void MoveBase::taskPathCb(const nav_msgs::Path::ConstPtr& path) {
     std::cout << "MoveBase::taskPathCb" << std::endl;
+    stop_flag_ = false;  
     publishZeroVelocity();    // 首先让车静止  
     // 提取全局轨迹
     latest_plan_->clear();
@@ -844,6 +845,9 @@ namespace move_base {
       //the real work on pursuing a goal is done here
       bool done = executeCycle();
 
+      if (stop_flag_) {
+        break; 
+      }
       //if we're done, then we'll return from execute
       if(done) {
         std_msgs::UInt8 msg;  
@@ -870,13 +874,20 @@ namespace move_base {
     return;
   }
 
-  double MoveBase::distance(const geometry_msgs::PoseStamped& p1, const geometry_msgs::PoseStamped& p2)
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  void MoveBase::taskStopCb(const std_msgs::Bool::ConstPtr& flag) {
+    std::cout << "MoveBase::taskStopCb " << "\n";
+    stop_flag_ = true;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  double MoveBase::distance(const geometry_msgs::PoseStamped& p1, 
+                                                              const geometry_msgs::PoseStamped& p2)
   {
     return hypot(p1.pose.position.x - p2.pose.position.x, p1.pose.position.y - p2.pose.position.y);
   }
 
   // global_plan 没有用
-  // bool MoveBase::executeCycle(geometry_msgs::PoseStamped& goal, std::vector<geometry_msgs::PoseStamped>& global_plan){
   bool MoveBase::executeCycle() {
     boost::recursive_mutex::scoped_lock ecl(configuration_mutex_);
     //we need to be able to publish velocity commands
@@ -887,11 +898,6 @@ namespace move_base {
     geometry_msgs::PoseStamped global_pose;
     getRobotPose(global_pose, planner_costmap_ros_);
     const geometry_msgs::PoseStamped& current_position = global_pose;
-
-    //push the feedback out
-    // move_base_msgs::MoveBaseFeedback feedback;
-    // feedback.base_position = current_position;
-    // as_->publishFeedback(feedback);     //  这里是不是会发送给局部规划模块???????????????????
 
     //check to see if we've moved far enough to reset our oscillation timeout
     // 就是说如果移动了足够远的距离就不会认为是振荡  从而触发恢复  

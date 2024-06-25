@@ -39,6 +39,7 @@
 
 #include <vector>
 #include <string>
+#include <atomic>
 
 #include <ros/ros.h>
 
@@ -52,6 +53,8 @@
 #include <costmap_2d/costmap_2d_ros.h>
 #include <costmap_2d/costmap_2d.h>
 #include <nav_msgs/GetPlan.h>
+#include <std_msgs/UInt8.h>  
+#include <std_msgs/Bool.h>  
 
 #include <pluginlib/class_loader.hpp>
 #include <std_srvs/Empty.h>
@@ -164,6 +167,8 @@ namespace move_base {
 
       void taskPathCb(const nav_msgs::Path::ConstPtr& path);
 
+      void taskStopCb(const std_msgs::Bool::ConstPtr& flag);
+
       bool isQuaternionValid(const geometry_msgs::Quaternion& q);
 
       bool getRobotPose(geometry_msgs::PoseStamped& global_pose, costmap_2d::Costmap2DROS* costmap);
@@ -199,6 +204,7 @@ namespace move_base {
       ros::Publisher current_goal_pub_, vel_pub_, action_goal_pub_;
       ros::Subscriber goal_sub_;
       ros::Subscriber plan_sub_;
+      ros::Subscriber stop_task_sub_;
       ros::Publisher plan_done_pub_; 
       ros::ServiceServer make_plan_srv_, clear_costmaps_srv_;
       bool shutdown_costmaps_, clearing_rotation_allowed_, recovery_behavior_enabled_;
@@ -237,6 +243,7 @@ namespace move_base {
       bool new_global_plan_;
       float rot_scale_;
       float trans_scale_;   
+      std::atomic<bool> stop_flag_{false};
   };
 };
 #endif
