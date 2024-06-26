@@ -655,7 +655,6 @@ namespace move_base {
     }
   }
   
-  
   // 发布导航目的地后跳转到这里   !!!!!!!!!!!!!!!
   void MoveBase::executeCb(const move_base_msgs::MoveBaseGoalConstPtr& move_base_goal)
   {
@@ -887,7 +886,6 @@ namespace move_base {
     return hypot(p1.pose.position.x - p2.pose.position.x, p1.pose.position.y - p2.pose.position.y);
   }
 
-  // global_plan 没有用
   bool MoveBase::executeCycle() {
     boost::recursive_mutex::scoped_lock ecl(configuration_mutex_);
     //we need to be able to publish velocity commands
@@ -921,7 +919,7 @@ namespace move_base {
     }
 
     //if we have a new plan then grab it and give it to the controller
-    if(new_global_plan_) {
+    if (new_global_plan_) {
       //make sure to set the new plan flag to false
       new_global_plan_ = false;
 
@@ -1026,7 +1024,7 @@ namespace move_base {
             state_ = CLEARING;
             recovery_trigger_ = CONTROLLING_R;
           }
-          else{
+          else {
             //otherwise, if we can't find a valid control, we'll go back to planning
             last_valid_plan_ = ros::Time::now();
             planning_retries_ = 0;

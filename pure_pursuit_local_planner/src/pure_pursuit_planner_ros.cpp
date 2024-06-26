@@ -131,22 +131,8 @@ namespace pure_pursuit_local_planner {
     }
     // 判断是否需要更新预瞄点
     dp_->UpdateFrontTargetPoint(current_pose_.pose.position.x, current_pose_.pose.position.y);  
-
-    // // 使用latchedStopRotateController_来检查是否到达了目标位置。如果到达了，则执行停止和旋转的逻辑。
-    // if (latchedStopRotateController_.isPositionReached(&planner_util_, current_pose_)) {
-
-    // } else {
-      // 计算DWA规划器的速度命令
-      bool isOk = dp_->CalculateMotion(cmd_vel);
-      // if (isOk) {
-      //   publishGlobalPlan(transformed_plan);
-      // } else {
-      //   ROS_WARN_NAMED("dwa_local_planner", "DWA planner failed to produce path.");
-      //   std::vector<geometry_msgs::PoseStamped> empty_plan;
-      //   publishGlobalPlan(empty_plan);
-      // }
-    //   return isOk;
-    // }
+    // 计算DWA规划器的速度命令
+    bool isOk = dp_->CalculateMotion(cmd_vel);
     return true; 
   }
 };

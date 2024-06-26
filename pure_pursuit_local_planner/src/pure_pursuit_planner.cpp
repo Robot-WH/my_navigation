@@ -258,8 +258,8 @@ geometry_msgs::PoseStamped PurePursuitPlanner::goalToBaseFrame(
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 bool PurePursuitPlanner::CalculateMotion(geometry_msgs::Twist& cmd_vel) {
-  float rotation_v = 0;
-  float linear_v = 0; 
+  float rotation_v = 0.0;
+  static float linear_v = 0.0; 
   // 初始对齐状态时，纯旋转，让机器人对齐目标点
   if (state_ == State::begin_align) {
     // std::cout << "state_ == State::begin_align" << "\n"; 
@@ -295,7 +295,10 @@ bool PurePursuitPlanner::CalculateMotion(geometry_msgs::Twist& cmd_vel) {
           linear_v = std::sqrt(l_2); 
         }
       } else {
-        linear_v = linear_v_max_; 
+        // 加速时需要限制加速度
+        if (linear_v < linear_v_max_) {
+          linear_v += 0.02;  
+        }
       }
   }
     // 确定角速度
