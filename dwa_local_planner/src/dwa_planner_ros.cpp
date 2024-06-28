@@ -183,8 +183,6 @@ namespace dwa_local_planner {
     delete dsrv_;
   }
 
-
-
   bool DWAPlannerROS::dwaComputeVelocityCommands(geometry_msgs::PoseStamped &global_pose, geometry_msgs::Twist& cmd_vel) {
     // dynamic window sampling approach to get useful velocity commands
     if(! isInitialized()){
@@ -200,11 +198,9 @@ namespace dwa_local_planner {
     double start_t, end_t, t_diff;
     gettimeofday(&start, NULL);
     */
-
     //compute what trajectory to drive along
     geometry_msgs::PoseStamped drive_cmds;
     drive_cmds.header.frame_id = costmap_ros_->getBaseFrameID();
-    
     // call with updated footprint
     base_local_planner::Trajectory path = dp_->findBestPath(global_pose, robot_vel, drive_cmds);
     //ROS_ERROR("Best: %.2f, %.2f, %.2f, %.2f", path.xv_, path.yv_, path.thetav_, path.cost_);
@@ -225,6 +221,7 @@ namespace dwa_local_planner {
     //if we cannot move... tell someone
     std::vector<geometry_msgs::PoseStamped> local_plan;
     if(path.cost_ < 0) {
+      // std::cout << "path.cost_: " << path.cost_ << "\n"; 
       ROS_WARN_NAMED("dwa_local_planner",
           "The dwa local planner failed to find a valid plan, cost functions discarded all candidates. This can mean there is an obstacle too close to the robot.");
       local_plan.clear();
@@ -234,6 +231,7 @@ namespace dwa_local_planner {
       reverse_ = true;  
       return false;
     } else {
+      // 如果开启了倒档   则取消
       if (reverse_) {
         static uint8_t reverse_time = 0;
         if (reverse_time > 8) {
@@ -270,7 +268,6 @@ namespace dwa_local_planner {
     publishLocalPlan(local_plan);
     return true;
   }
-
 
   bool DWAPlannerROS::computeVelocityCommands(geometry_msgs::Twist& cmd_vel) {
     // dispatches to either dwa sampling control or stop and rotate control, depending on whether we have been close enough to goal

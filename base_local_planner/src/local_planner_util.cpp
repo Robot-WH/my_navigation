@@ -62,7 +62,7 @@ void LocalPlannerUtil::reconfigureCB(LocalPlannerLimits &config, bool restore_de
     config = default_limits_;
   }
 
-  if(!setup_) {
+  if(!setup_) {   
     default_limits_ = config;
     setup_ = true;
   }

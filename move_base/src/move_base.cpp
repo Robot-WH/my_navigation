@@ -75,13 +75,16 @@ namespace move_base {
     recovery_trigger_ = PLANNING_R;
 
     //get some parameters that will be global to the move base node
-    std::string global_planner, local_planner;
+    std::string global_planner, local_planner, path_tracking_controller;
     private_nh.param("base_global_planner", global_planner, std::string("navfn/NavfnROS"));
     private_nh.param("base_local_planner", local_planner, std::string("base_local_planner/TrajectoryPlannerROS"));
+    private_nh.param("path_tracking_controller", path_tracking_controller, 
+        std::string("pure_pursuit_local_planner/PurePursuitPlannerROS"));
     private_nh.param("global_costmap/robot_base_frame", robot_base_frame_, std::string("base_link"));
     private_nh.param("global_costmap/global_frame", global_frame_, std::string("map"));
     private_nh.param("planner_frequency", planner_frequency_, 0.0);
     private_nh.param("controller_frequency", controller_frequency_, 20.0);
+    // controller_frequency_ = 5;
     private_nh.param("planner_patience", planner_patience_, 5.0);
     private_nh.param("controller_patience", controller_patience_, 15.0);
     private_nh.param("max_planning_retries", max_planning_retries_, -1);  // disabled by default
@@ -150,6 +153,15 @@ namespace move_base {
       tc_->initialize(blp_loader_.getName(local_planner), &tf_, controller_costmap_ros_);
     } catch (const pluginlib::PluginlibException& ex) {
       ROS_FATAL("Failed to create the %s planner, are you sure it is properly registered and that the containing library is built? Exception: %s", local_planner.c_str(), ex.what());
+      exit(1);
+    }
+
+    try {
+      path_tracking_controller_ = blp_loader_.createInstance(path_tracking_controller);
+      ROS_INFO("Created local_planner %s", path_tracking_controller.c_str());
+      path_tracking_controller_->initialize(blp_loader_.getName(local_planner), &tf_, controller_costmap_ros_);
+    } catch (const pluginlib::PluginlibException& ex) {
+      ROS_FATAL("Failed to create the %s planner, are you sure it is properly registered and that the containing library is built? Exception: %s", path_tracking_controller.c_str(), ex.what());
       exit(1);
     }
 
@@ -678,6 +690,7 @@ namespace move_base {
     // std::vector<geometry_msgs::PoseStamped> global_plan;
 
     ros::Rate r(controller_frequency_);
+    // ros::Rate r(5);
     if(shutdown_costmaps_){
       ROS_DEBUG_NAMED("move_base","Starting up costmaps that were shut down previously");
       planner_costmap_ros_->start();
@@ -776,8 +789,7 @@ namespace move_base {
       ros::WallTime start = ros::WallTime::now();
 
       //the real work on pursuing a goal is done here
-      // bool done = executeCycle(goal, global_plan);
-      bool done = executeCycle();
+      bool done = executeCycle(tc_);
 
       //if we're done, then we'll return from execute
       if(done)
@@ -842,9 +854,10 @@ namespace move_base {
       ros::WallTime start = ros::WallTime::now();
 
       //the real work on pursuing a goal is done here
-      bool done = executeCycle();
+      bool done = executeCycle(path_tracking_controller_);
 
       if (stop_flag_) {
+        publishZeroVelocity(); 
         break; 
       }
       //if we're done, then we'll return from execute
@@ -886,7 +899,7 @@ namespace move_base {
     return hypot(p1.pose.position.x - p2.pose.position.x, p1.pose.position.y - p2.pose.position.y);
   }
 
-  bool MoveBase::executeCycle() {
+  bool MoveBase::executeCycle(const boost::shared_ptr<nav_core::BaseLocalPlanner>& controllor) {
     boost::recursive_mutex::scoped_lock ecl(configuration_mutex_);
     //we need to be able to publish velocity commands
     geometry_msgs::Twist cmd_vel;
@@ -933,8 +946,8 @@ namespace move_base {
       latest_plan_ = temp_plan;
       lock.unlock();
       ROS_DEBUG_NAMED("move_base","pointers swapped!");
-      std::cout << "tc_->setPlan" << "\n";
-      if(!tc_->setPlan(*controller_plan_)){
+
+      if(!controllor->setPlan(*controller_plan_)){
         //ABORT and SHUTDOWN COSTMAPS
         ROS_ERROR("Failed to pass global plan to the controller, aborting.");
         resetState();
@@ -947,7 +960,6 @@ namespace move_base {
         as_->setAborted(move_base_msgs::MoveBaseResult(), "Failed to pass global plan to the controller.");
         return true;
       }
-      std::cout << "tc_->setPlan   end" << "\n";
       //make sure to reset recovery_index_ since we were able to find a valid plan
       if(recovery_trigger_ == PLANNING_R)
         recovery_index_ = 0;
@@ -972,7 +984,7 @@ namespace move_base {
         std::cout << "CONTROLLING" << "\n"; 
         //check to see if we've reached our goal
         // 这里面通过costmap_ros_获取机器人的位置，最后也是通过tf获取
-        if(tc_->isGoalReached()) {
+        if(controllor->isGoalReached()) {
           ROS_DEBUG_NAMED("move_base","Goal reached!");
           resetState();
 
@@ -999,7 +1011,7 @@ namespace move_base {
          boost::unique_lock<costmap_2d::Costmap2D::mutex_t> lock(*(controller_costmap_ros_->getCostmap()->getMutex()));
         // 进行局部规划 
         std::cout << "computeVelocityCommands()" << "\n"; 
-        if(tc_->computeVelocityCommands(cmd_vel)) {
+        if(controllor->computeVelocityCommands(cmd_vel)) {
           ROS_DEBUG_NAMED( "move_base", "Got a valid command from the local planner: %.3lf, %.3lf, %.3lf",
                            cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z );
           last_valid_control_ = ros::Time::now();

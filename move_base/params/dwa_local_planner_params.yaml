@@ -1,8 +1,7 @@
 DWAPlannerROS:
-
 # Robot Configuration Parameters - Kobuki
   max_vel_x: 0.3
-  min_vel_x: 0.05
+  min_vel_x: 0.03
 
   max_vel_y: 0
   min_vel_y: 0

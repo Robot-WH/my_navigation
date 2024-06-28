@@ -53,7 +53,7 @@ namespace dwa_local_planner {
   {
     std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!DWAPlanner::reconfigure" << std::endl;
     boost::mutex::scoped_lock l(configuration_mutex_);
-
+    
     generator_.setParameters(
         config.sim_time,
         config.sim_granularity,
@@ -239,7 +239,6 @@ namespace dwa_local_planner {
     //otherwise the check fails
     return false;
   }
-
 
   void DWAPlanner::updatePlanAndLocalCosts(
       const geometry_msgs::PoseStamped& global_pose,

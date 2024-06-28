@@ -14,85 +14,14 @@ void PurePursuitPlanner::reconfigure(PurePursuitPlannerConfig &config)
 {
   std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!PurePursuitPlanner::reconfigure" << std::endl;
   boost::mutex::scoped_lock l(configuration_mutex_);
-
-  generator_.setParameters(
-      config.sim_time,
-      config.sim_granularity,
-      config.angular_sim_granularity,
-      config.use_dwa,
-      sim_period_);
-
-  double resolution = planner_util_->getCostmap()->getResolution();
-  path_distance_bias_ = resolution * config.path_distance_bias;
-  // pdistscale used for both path and alignment, set  forward_point_distance to zero to discard alignment
-  path_costs_.setScale(path_distance_bias_);
-  alignment_costs_.setScale(path_distance_bias_);
-  motionDirection_costs_.setScale(path_distance_bias_);
-
-  goal_distance_bias_ = resolution * config.goal_distance_bias;
-  goal_costs_.setScale(goal_distance_bias_);
-  goal_front_costs_.setScale(goal_distance_bias_);
-
-  occdist_scale_ = config.occdist_scale;
-  obstacle_costs_.setScale(occdist_scale_);
-
-  stop_time_buffer_ = config.stop_time_buffer;
-  oscillation_costs_.setOscillationResetDist(config.oscillation_reset_dist, config.oscillation_reset_angle);
   forward_point_distance_ = config.forward_point_distance;
-  goal_front_costs_.setXShift(forward_point_distance_);
-  alignment_costs_.setXShift(forward_point_distance_);
-
-  // obstacle costs can vary due to scaling footprint feature
-  obstacle_costs_.setParams(config.max_vel_trans, config.max_scaling_factor, config.scaling_speed);
-  linearVelocity_costs_.setScale(0.001);  
-  twirling_costs_.setScale(config.twirling_scale);
-  std::cout << "config.twirling_scale: " << config.twirling_scale << std::endl;
-
-  int vx_samp, vy_samp, vth_samp;
-  vx_samp = config.vx_samples;
-  vy_samp = config.vy_samples;
-  vth_samp = config.vth_samples;
-
-  if (vx_samp <= 0) {
-    ROS_WARN("You've specified that you don't want any samples in the x dimension. We'll at least assume that you want to sample one value... so we're going to set vx_samples to 1 instead");
-    vx_samp = 1;
-    config.vx_samples = vx_samp;
-  }
-
-  if (vy_samp <= 0) {
-    ROS_WARN("You've specified that you don't want any samples in the y dimension. We'll at least assume that you want to sample one value... so we're going to set vy_samples to 1 instead");
-    vy_samp = 1;
-    config.vy_samples = vy_samp;
-  }
-
-  if (vth_samp <= 0) {
-    ROS_WARN("You've specified that you don't want any samples in the th dimension. We'll at least assume that you want to sample one value... so we're going to set vth_samples to 1 instead");
-    vth_samp = 1;
-    config.vth_samples = vth_samp;
-  }
-
-  vsamples_[0] = vx_samp;
-  vsamples_[1] = vy_samp;
-  vsamples_[2] = vth_samp;
-  std::cout << "vx_samp: " << vx_samp << std::endl;
-  std::cout << "vy_samp: " << vy_samp << std::endl;
-  std::cout << "vth_samp: " << vth_samp << std::endl;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 PurePursuitPlanner::PurePursuitPlanner(std::string name, tf2_ros::Buffer* tf, base_local_planner::LocalPlannerUtil *planner_util) :
-    tf_(tf), linear_v_max_(0.2),
-    planner_util_(planner_util),
-    obstacle_costs_(planner_util->getCostmap()),
-    path_costs_(planner_util->getCostmap()),
-    goal_costs_(planner_util->getCostmap(), 0.0, 0.0, true),
-    goal_front_costs_(planner_util->getCostmap(), 0.0, 0.0, true),
-    alignment_costs_(planner_util->getCostmap())
+    tf_(tf), linear_v_max_(0.2)
 {
   ros::NodeHandle private_nh("~/" + name);
-
-  goal_front_costs_.setStopOnFailure( false );
-  alignment_costs_.setStopOnFailure( false );
 
   //Assuming this planner is being run within the navigation stack, we can
   //just do an upward search for the frequency at which its being run. This
@@ -112,63 +41,11 @@ PurePursuitPlanner::PurePursuitPlanner(std::string name, tf2_ros::Buffer* tf, ba
   }
   ROS_INFO("Sim period is set to %.2f", sim_period_);
 
-  oscillation_costs_.resetOscillationFlags();
-
-  bool sum_scores;
-  private_nh.param("sum_scores", sum_scores, false);
-  obstacle_costs_.setSumScores(sum_scores);
-
-
-  private_nh.param("publish_cost_grid_pc", publish_cost_grid_pc_, false);
-  map_viz_.initialize(name, planner_util->getGlobalFrame(), boost::bind(&PurePursuitPlanner::getCellCosts, this, _1, _2, _3, _4, _5, _6));
-
   private_nh.param("global_frame_id", frame_id_, std::string("odom"));
 
-  traj_cloud_pub_ = private_nh.advertise<sensor_msgs::PointCloud2>("trajectory_cloud", 1);
-  private_nh.param("publish_traj_pc", publish_traj_pc_, false);
-
-  // set up all the cost functions that will be applied in order
-  // (any function returning negative values will abort scoring, so the order can improve performance)
-  std::vector<base_local_planner::TrajectoryCostFunction*> critics;
-  critics.push_back(&oscillation_costs_); // 运动打分判断，是否震荡，是：代价大
-  critics.push_back(&obstacle_costs_); // 障碍物碰撞检测打分，碰到障碍物，代价值增大
-  // critics.push_back(&goal_front_costs_); // 局部轨迹与局部路径的最终点的朝向一致
-  // critics.push_back(&alignment_costs_); // 局部轨迹与局部路径的朝向一致
-  // critics.push_back(&path_costs_); // 局部轨迹（根据当前速度外推出的轨迹）与局部路径（规划的路径）对比，局部轨迹离局部路径的横向偏差小，其代价值就小
-  // critics.push_back(&goal_costs_); // 局部轨迹与局部路径的终点进行对比，希望距离小
-  critics.push_back(&linearVelocity_costs_); 
-  // critics.push_back(&twirling_costs_); // 机器人旋转不要太大
-  critics.push_back(&motionDirection_costs_);   
-
-  // trajectory generators
-  std::vector<base_local_planner::TrajectorySampleGenerator*> generator_list;
-  generator_list.push_back(&generator_);
-
-  scored_sampling_planner_ = base_local_planner::SimpleScoredSamplingPlanner(generator_list, critics);
-
-  private_nh.param("cheat_factor", cheat_factor_, 1.0);
   state_ = State::begin_align;    
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// used for visualization only, total_costs are not really total costs
-bool PurePursuitPlanner::getCellCosts(int cx, int cy, float &path_cost, float &goal_cost, 
-                                                                                  float &occ_cost, float &total_cost) {
-  path_cost = path_costs_.getCellCosts(cx, cy);
-  goal_cost = goal_costs_.getCellCosts(cx, cy);
-  occ_cost = planner_util_->getCostmap()->getCost(cx, cy);
-  if (path_cost == path_costs_.obstacleCosts() ||
-      path_cost == path_costs_.unreachableCellCosts() ||
-      occ_cost >= costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
-    return false;
-  }
-
-  total_cost =
-      path_distance_bias_ * path_cost +
-      goal_distance_bias_ * goal_cost +
-      occdist_scale_ * occ_cost;
-  return true;
-}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 bool PurePursuitPlanner::setPlan(const std::vector<geometry_msgs::PoseStamped>& orig_global_plan) {
@@ -300,7 +177,7 @@ bool PurePursuitPlanner::CalculateMotion(geometry_msgs::Twist& cmd_vel) {
           linear_v += 0.02;  
         }
       }
-  }
+    }
     // 确定角速度
     // 确保front_target_point_in_base_.pose.position.y不为0，避免除以0的错误  
     // 线速度很慢时关闭旋转

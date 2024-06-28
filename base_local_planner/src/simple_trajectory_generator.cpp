@@ -56,7 +56,10 @@ void SimpleTrajectoryGenerator::initialise(
   sample_params_.insert(sample_params_.end(), additional_samples.begin(), additional_samples.end());
 }
 
-
+// dwa每次执行的时候都会调用，用于生成候选轨迹
+//  DWAPlannerROS::computeVelocityCommands -> 
+// DWAPlannerROS::dwaComputeVelocityCommands -> 
+// DWAPlanner::findBestPath
 void SimpleTrajectoryGenerator::initialise(
     const Eigen::Vector3f& pos,
     const Eigen::Vector3f& vel,
@@ -68,19 +71,20 @@ void SimpleTrajectoryGenerator::initialise(
    * We actually generate all velocity sample vectors here, from which to generate trajectories later on
    */
   double max_vel_th = limits->max_vel_theta;
-  std::cout << "max_vel_th: " << max_vel_th << std::endl;
+  // std::cout << "max_vel_th: " << max_vel_th << std::endl;
   double min_vel_th = -1.0 * max_vel_th;
-  std::cout << "min_vel_th: " << min_vel_th << std::endl;
+  // std::cout << "min_vel_th: " << min_vel_th << std::endl;
   discretize_by_time_ = discretize_by_time;
   Eigen::Vector3f acc_lim = limits->getAccLimits();
   pos_ = pos;
-  vel_ = vel;
+  vel_ = vel;     // 需要当前速度是为了后面根据最大加速度判断采样速度可不可取
   limits_ = limits;
   next_sample_index_ = 0;
   sample_params_.clear();
 
   double min_vel_x = limits->min_vel_x;
   double max_vel_x = limits->max_vel_x;
+  // std::cout << "limits->max_vel_x: " << limits->max_vel_x << std::endl;
   double min_vel_y = limits->min_vel_y;
   double max_vel_y = limits->max_vel_y;
 
@@ -106,22 +110,31 @@ void SimpleTrajectoryGenerator::initialise(
       min_vel[1] = std::max(min_vel_y, vel[1] - acc_lim[1] * sim_time_);
       min_vel[2] = std::max(min_vel_th, vel[2] - acc_lim[2] * sim_time_);
     } else {
+      // 根据当前速度与最大加速度 确定 采样速度的最大值   
       // with dwa do not accelerate beyond the first step, we only sample within velocities we reach in sim_period
       max_vel[0] = std::min(max_vel_x, vel[0] + acc_lim[0] * sim_period_);
+      // std::cout << "max_vel[0]: " << max_vel[0] << ", vel[0]: " << vel[0]
+      //   << ",acc_lim[0]:" << acc_lim[0] 
+      //   << ",max_vel_x: " << max_vel_x 
+      //   << " ,vel[0] + acc_lim[0] * sim_period_: " << vel[0] + acc_lim[0] * sim_period_ << std::endl;
       max_vel[1] = std::min(max_vel_y, vel[1] + acc_lim[1] * sim_period_);
       max_vel[2] = std::min(max_vel_th, vel[2] + acc_lim[2] * sim_period_);
+      // std::cout << "max_vel[2]: " << max_vel[2] << std::endl;
 
       min_vel[0] = std::max(min_vel_x, vel[0] - acc_lim[0] * sim_period_);
+      // std::cout << "min_vel[0]: " << min_vel[0] << std::endl;
       min_vel[1] = std::max(min_vel_y, vel[1] - acc_lim[1] * sim_period_);
       min_vel[2] = std::max(min_vel_th, vel[2] - acc_lim[2] * sim_period_);
+      // std::cout << "min_vel[2]: " << min_vel[2] << std::endl;
     }
 
     Eigen::Vector3f vel_samp = Eigen::Vector3f::Zero();
     // vsamples 为采样数，生成样本 
+    // 这里 VelocityIterator 即使  min_vel > max_vel 也可以，那么采样就是从大到小
     VelocityIterator x_it(min_vel[0], max_vel[0], vsamples[0]);
     VelocityIterator y_it(min_vel[1], max_vel[1], vsamples[1]);
     VelocityIterator th_it(min_vel[2], max_vel[2], vsamples[2]);
-    std::cout << "!!!!!!!!!!!!!!!!!!!!!!min_vel[2]: " << min_vel[2] << ",max_vel[2]: " << max_vel[2] << std::endl;
+    // std::cout << "vsamples[0]: " << vsamples[0] << "\n";
 
     for(; !x_it.isFinished(); x_it++) {
       vel_samp[0] = x_it.getVelocity();
@@ -131,6 +144,7 @@ void SimpleTrajectoryGenerator::initialise(
           vel_samp[2] = th_it.getVelocity();
           //ROS_DEBUG("Sample %f, %f, %f", vel_samp[0], vel_samp[1], vel_samp[2]);
           sample_params_.push_back(vel_samp);
+          // std::cout << "vel_samp: " << vel_samp.transpose() << std::endl;
         }
         th_it.reset();
       }
@@ -153,6 +167,7 @@ void SimpleTrajectoryGenerator::setParameters(
   continued_acceleration_ = ! use_dwa_;
   sim_period_ = sim_period;
   std::cout << "sim_time_: " << sim_time_ << std::endl;
+  std::cout << "sim_period_: " << sim_period_ << std::endl;
   std::cout << "sim_granularity_: " << sim_granularity_ << std::endl;
 }
 
@@ -190,6 +205,7 @@ bool SimpleTrajectoryGenerator::generateTrajectory(
       Eigen::Vector3f vel,
       Eigen::Vector3f sample_target_vel,
       base_local_planner::Trajectory& traj) {
+  // hypot(a, b)计算的是sqrt(a*a + b*b)
   double vmag = hypot(sample_target_vel[0], sample_target_vel[1]);
   double eps = 1e-4;
   traj.cost_   = -1.0; // placed here in case we return early
@@ -223,13 +239,13 @@ bool SimpleTrajectoryGenerator::generateTrajectory(
     return false;
   }
 
-  //compute a timestep
+  // compute a timestep
   double dt = sim_time_ / num_steps;
   traj.time_delta_ = dt;
 
   Eigen::Vector3f loop_vel;
   if (continued_acceleration_) {
-    // assuming the velocity of the first cycle is the one we want to store in the trajectory object
+    // 传入当前速度是为了考虑最大加速度的限制对速度进行选择
     loop_vel = computeNewVelocities(sample_target_vel, vel, limits_->getAccLimits(), dt);
     traj.xv_     = loop_vel[0];
     traj.yv_     = loop_vel[1];
@@ -279,8 +295,10 @@ Eigen::Vector3f SimpleTrajectoryGenerator::computeNewVelocities(const Eigen::Vec
   Eigen::Vector3f new_vel = Eigen::Vector3f::Zero();
   for (int i = 0; i < 3; ++i) {
     if (vel[i] < sample_target_vel[i]) {
+      // 加速
       new_vel[i] = std::min(double(sample_target_vel[i]), vel[i] + acclimits[i] * dt);
     } else {
+      // 减速
       new_vel[i] = std::max(double(sample_target_vel[i]), vel[i] - acclimits[i] * dt);
     }
   }

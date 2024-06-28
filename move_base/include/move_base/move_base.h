@@ -103,7 +103,7 @@ namespace move_base {
        * @param global_plan A reference to the global plan being used
        * @return True if processing of the goal is done, false otherwise
        */
-      bool executeCycle();
+      bool executeCycle(const boost::shared_ptr<nav_core::BaseLocalPlanner>& controllor);
 
     private:
       /**
@@ -187,6 +187,7 @@ namespace move_base {
       MoveBaseActionServer* as_;
 
       boost::shared_ptr<nav_core::BaseLocalPlanner> tc_;
+      boost::shared_ptr<nav_core::BaseLocalPlanner> path_tracking_controller_;
       costmap_2d::Costmap2DROS* planner_costmap_ros_, *controller_costmap_ros_;
 
       boost::shared_ptr<nav_core::BaseGlobalPlanner> planner_;

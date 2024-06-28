@@ -72,7 +72,7 @@ bool ObstacleCostFunction::prepare() {
 }
 
 double ObstacleCostFunction::scoreTrajectory(Trajectory &traj) {
-  std::cout << "ObstacleCostFunction" << std::endl;
+  // std::cout << "ObstacleCostFunction" << std::endl;
   double cost = 0;
   double scale = getScalingFactor(traj, scaling_speed_, max_trans_vel_, max_scaling_factor_);
   double px, py, pth;
