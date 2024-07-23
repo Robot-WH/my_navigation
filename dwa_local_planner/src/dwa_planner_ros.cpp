@@ -88,7 +88,7 @@ namespace dwa_local_planner {
 
       // update dwa specific configuration
       dp_->reconfigure(config);
-  }
+  } 
 
   DWAPlannerROS::DWAPlannerROS() : initialized_(false),
       odom_helper_("odom"), setup_(false) {
@@ -129,7 +129,7 @@ namespace dwa_local_planner {
       nav_core::warnRenamedParameter(private_nh, "min_vel_theta", "min_rot_vel");
       nav_core::warnRenamedParameter(private_nh, "acc_lim_trans", "acc_limit_trans");
       nav_core::warnRenamedParameter(private_nh, "theta_stopped_vel", "rot_stopped_vel");
-
+      
       dsrv_ = new dynamic_reconfigure::Server<DWAPlannerConfig>(private_nh);
       dynamic_reconfigure::Server<DWAPlannerConfig>::CallbackType cb = boost::bind(&DWAPlannerROS::reconfigureCB, this, _1, _2);
       dsrv_->setCallback(cb);
@@ -156,7 +156,7 @@ namespace dwa_local_planner {
       ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
       return false;
     }
-    if ( ! costmap_ros_->getRobotPose(current_pose_)) {
+    if (!costmap_ros_->getRobotPose(current_pose_)) {
       ROS_ERROR("Could not get robot pose");
       return false;
     }
@@ -233,13 +233,17 @@ namespace dwa_local_planner {
     } else {
       // 如果开启了倒档   则取消
       if (reverse_) {
-        static uint8_t reverse_time = 0;
-        if (reverse_time > 8) {
+        // static uint8_t reverse_time = 0;
+        // if (reverse_time > 10) {
+        //   reverse_ = false;  
+        //   dp_->disableReverse();   
+        //   reverse_time = 0;
+        // } else {
+        //   reverse_time++;  
+        // }
+        if (path.xv_ > 0.05) {
           reverse_ = false;  
           dp_->disableReverse();   
-          reverse_time = 0;
-        } else {
-          reverse_time++;  
         }
       }
     }
@@ -271,15 +275,14 @@ namespace dwa_local_planner {
 
   bool DWAPlannerROS::computeVelocityCommands(geometry_msgs::Twist& cmd_vel) {
     // dispatches to either dwa sampling control or stop and rotate control, depending on whether we have been close enough to goal
-    // 获取当前位姿
-    if ( ! costmap_ros_->getRobotPose(current_pose_)) {
+    // 获取当前位姿，current_pose_是在costmap坐标系的全局坐标系(一般是odom)下的位姿 
+    if (!costmap_ros_->getRobotPose(current_pose_)) {
       ROS_ERROR("Could not get robot pose");
       return false;
     }
-    // 调用planner_util_的getLocalPlan方法，以当前位姿为起点，
-    // 获取局部路径，并将其存储在transformed_plan中。如果失败，则返回false。
+    // 将全局路径进行裁剪，并且转换到costmap坐标系的全局坐标系(一般是odom)下，得到transformed_plan
     std::vector<geometry_msgs::PoseStamped> transformed_plan;
-    if ( ! planner_util_.getLocalPlan(current_pose_, transformed_plan)) {
+    if (!planner_util_.getLocalPlan(current_pose_, transformed_plan)) {
       ROS_ERROR("Could not get local plan");
       return false;
     }

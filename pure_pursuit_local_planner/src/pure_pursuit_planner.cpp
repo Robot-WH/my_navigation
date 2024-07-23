@@ -199,7 +199,7 @@ bool PurePursuitPlanner::CalculateMotion(geometry_msgs::Twist& cmd_vel) {
       state_ = State::end_align;
     }
   } else if (state_ == State::end_align) {
-    std::cout << "state_ == State::end_align" << "\n"; 
+    // std::cout << "state_ == State::end_align" << "\n"; 
     // 将ROS的Quaternion转换为tf2的Quaternion  
     tf2::Quaternion q(front_target_point_in_base_.pose.orientation.x, front_target_point_in_base_.pose.orientation.y,  
                       front_target_point_in_base_.pose.orientation.z, front_target_point_in_base_.pose.orientation.w);  
@@ -207,7 +207,7 @@ bool PurePursuitPlanner::CalculateMotion(geometry_msgs::Twist& cmd_vel) {
     // tf2::Vector3 euler_angles = q.getEuler();  
     double roll, pitch, yaw;  
     tf2::Matrix3x3(q).getRPY(roll, pitch, yaw);  
-    std::cout << "yaw: " << yaw << "\n"; 
+    // std::cout << "yaw: " << yaw << "\n"; 
     // euler_angles.z就是yaw角（绕Z轴的旋转角）  
     // double yaw = euler_angles.z();  
     // 误差在10度以上   则全速旋转

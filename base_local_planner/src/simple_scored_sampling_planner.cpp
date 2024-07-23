@@ -106,7 +106,8 @@ namespace base_local_planner {
     Trajectory loop_traj;
     Trajectory best_traj;
 
-    for (std::vector<TrajectorySampleGenerator*>::iterator loop_gen = gen_list_.begin(); loop_gen != gen_list_.end(); ++loop_gen) {
+    for (std::vector<TrajectorySampleGenerator*>::iterator loop_gen = gen_list_.begin(); 
+                  loop_gen != gen_list_.end(); ++loop_gen) {
       count = 0;
       count_valid = 0;
       TrajectorySampleGenerator* gen_ = *loop_gen;

@@ -83,7 +83,7 @@ namespace dwa_local_planner {
  
     // obstacle costs can vary due to scaling footprint feature
     obstacle_costs_.setParams(config.max_vel_trans, config.max_scaling_factor, config.scaling_speed);
-    linearVelocity_costs_.setScale(0.001);  
+    linearVelocity_costs_.setScale(0.1);  
     twirling_costs_.setScale(config.twirling_scale);
     std::cout << "config.twirling_scale: " << config.twirling_scale << std::endl;
 
@@ -310,7 +310,7 @@ namespace dwa_local_planner {
     // prepare cost functions and generators for this run
     generator_.initialise(pos,
         vel,
-        goal,      // 这里传入目标点只是为了求一个速度  
+        goal,      // 这里传入目标点只是为了求一个速度，只有当  use_dwa_ = 0 时才有用
         &limits,
         vsamples_);
 

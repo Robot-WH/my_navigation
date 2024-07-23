@@ -84,7 +84,8 @@ void SimpleTrajectoryGenerator::initialise(
 
   double min_vel_x = limits->min_vel_x;
   double max_vel_x = limits->max_vel_x;
-  // std::cout << "limits->max_vel_x: " << limits->max_vel_x << std::endl;
+  std::cout << "limits->max_vel_x: " << limits->max_vel_x << std::endl;
+  std::cout << "limits->min_vel_x: " << limits->min_vel_x << std::endl;
   double min_vel_y = limits->min_vel_y;
   double max_vel_y = limits->max_vel_y;
 
@@ -94,7 +95,8 @@ void SimpleTrajectoryGenerator::initialise(
     Eigen::Vector3f max_vel = Eigen::Vector3f::Zero();
     Eigen::Vector3f min_vel = Eigen::Vector3f::Zero();
 
-    if ( ! use_dwa_) {
+    if (!use_dwa_) {
+      std::cout << "!use_dwa_" << "\n";
       // there is no point in overshooting the goal, and it also may break the
       // robot behavior, so we limit the velocities to those that do not overshoot in sim_time
       double dist = hypot(goal[0] - pos[0], goal[1] - pos[1]);
@@ -110,10 +112,11 @@ void SimpleTrajectoryGenerator::initialise(
       min_vel[1] = std::max(min_vel_y, vel[1] - acc_lim[1] * sim_time_);
       min_vel[2] = std::max(min_vel_th, vel[2] - acc_lim[2] * sim_time_);
     } else {
+      std::cout << "use_dwa_" << "\n";
       // 根据当前速度与最大加速度 确定 采样速度的最大值   
       // with dwa do not accelerate beyond the first step, we only sample within velocities we reach in sim_period
       max_vel[0] = std::min(max_vel_x, vel[0] + acc_lim[0] * sim_period_);
-      // std::cout << "max_vel[0]: " << max_vel[0] << ", vel[0]: " << vel[0]
+      std::cout << "max_vel[0]: " << max_vel[0] << "\n";  
       //   << ",acc_lim[0]:" << acc_lim[0] 
       //   << ",max_vel_x: " << max_vel_x 
       //   << " ,vel[0] + acc_lim[0] * sim_period_: " << vel[0] + acc_lim[0] * sim_period_ << std::endl;
@@ -167,6 +170,7 @@ void SimpleTrajectoryGenerator::setParameters(
   continued_acceleration_ = ! use_dwa_;
   sim_period_ = sim_period;
   std::cout << "sim_time_: " << sim_time_ << std::endl;
+  std::cout << "use_dwa_: " << use_dwa_ << std::endl;
   std::cout << "sim_period_: " << sim_period_ << std::endl;
   std::cout << "sim_granularity_: " << sim_granularity_ << std::endl;
 }

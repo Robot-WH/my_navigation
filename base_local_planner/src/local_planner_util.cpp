@@ -81,8 +81,8 @@ LocalPlannerLimits LocalPlannerUtil::getCurrentLimits() {
 
 void LocalPlannerUtil::enableReverse() {
   std::cout << "-----------------LocalPlannerUtil::enableReverse() 开启倒档" << std::endl;
-  limits_.min_vel_x = -0.1;  
-  limits_.max_vel_x = -0.0;  
+  limits_.min_vel_x = -0.2;  
+  limits_.max_vel_x = 0.2;  
 }
 
 void LocalPlannerUtil::disableReverse() {
@@ -115,19 +115,27 @@ bool LocalPlannerUtil::setPlan(const std::vector<geometry_msgs::PoseStamped>& or
   return true;
 }
 
-bool LocalPlannerUtil::getLocalPlan(const geometry_msgs::PoseStamped& global_pose, std::vector<geometry_msgs::PoseStamped>& transformed_plan) {
+/**
+ * @brief 
+ * 
+ * @param global_pose 机器人当前位姿，需要这个的目的是对全局路径进行裁剪  
+ * @param[out] transformed_plan global_plan_裁剪后然后转换到global_frame_的结果 
+ * @return true 
+ * @return false 
+ */
+bool LocalPlannerUtil::getLocalPlan(const geometry_msgs::PoseStamped& global_pose, 
+      std::vector<geometry_msgs::PoseStamped>& transformed_plan) {
   //get the global plan in our frame
   if(!base_local_planner::transformGlobalPlan(
       *tf_,
       global_plan_,   // 全局路径规划 
-      global_pose,   // 机器人的全局位姿 
+      global_pose,   // 机器人的全局位姿     在dwa中就是costmap的全局参考系odom下的位姿
       *costmap_,
-      global_frame_,       // costmap_的全局参考系  
+      global_frame_,       // costmap_的全局参考系 一般是odom
       transformed_plan)) {
     ROS_WARN("Could not transform the global plan to the frame of the controller");
     return false;
   }
-
   //now we'll prune the plan based on the position of the robot
   if(limits_.prune_plan) {
     // 没执行

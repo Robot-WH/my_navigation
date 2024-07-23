@@ -17,6 +17,9 @@ namespace base_local_planner {
 
 double LinearVelocityCostFunction::scoreTrajectory(Trajectory &traj) {
   // std::cout << "LinearVelocityCostFunction" << std::endl;
+  if (traj.xv_ < 0) {
+    return 5 / (traj.xv_ * traj.xv_); 
+  }
   return 1 / (traj.xv_ * traj.xv_);  // add cost for making the robot spin
 }
 

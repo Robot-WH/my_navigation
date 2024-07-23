@@ -590,7 +590,10 @@ bool Costmap2DROS::getRobotPose(geometry_msgs::PoseStamped& global_pose) const
   // get the global pose of the robot
   try
   {
-    tf_.transform(robot_pose, global_pose, global_frame_);
+    // 获取robot_base_frame_ -> global_frame_ 的姿态  
+    // 将robot_pose（在机器人基座TF帧下的姿态）转换为global_frame_
+    // （这是另一个类成员变量，表示全局TF帧ID）下的姿态 并赋值给global_pose
+    tf_.transform(robot_pose, global_pose, global_frame_);   // 这个costmap的global_frame_一般是odom
   }
   catch (tf2::LookupException& ex)
   {

@@ -94,13 +94,26 @@ namespace base_local_planner {
     }
   }
 
+  /**
+   * @brief  将全局路径进行裁剪(只保留距离小于阈值的部分)，
+   *                并且将路径转换到global_frame系(costmap的全局参考系，一般为odom)得到transformed_plan
+   * 
+   * @param tf 
+   * @param global_plan 
+   * @param global_pose  机器人在costmap全局参考系(一般为odom)下的姿态 
+   * @param costmap 
+   * @param global_frame 
+   * @param transformed_plan[out] 
+   * @return true 
+   * @return false 
+   */
   bool transformGlobalPlan(
       const tf2_ros::Buffer& tf,
       const std::vector<geometry_msgs::PoseStamped>& global_plan,
       const geometry_msgs::PoseStamped& global_pose,
       const costmap_2d::Costmap2D& costmap,
       const std::string& global_frame,
-      std::vector<geometry_msgs::PoseStamped>& transformed_plan){
+      std::vector<geometry_msgs::PoseStamped>& transformed_plan) {
     transformed_plan.clear();
 
     if (global_plan.empty()) {
@@ -111,13 +124,21 @@ namespace base_local_planner {
     const geometry_msgs::PoseStamped& plan_pose = global_plan[0];
     try {
       // get plan_to_global_transform from plan frame to global_frame
-      // 获取全局路径规划的参考系到局部路径规划costmap参考系的变换  
-      geometry_msgs::TransformStamped plan_to_global_transform = tf.lookupTransform(global_frame, ros::Time(),
-          plan_pose.header.frame_id, plan_pose.header.stamp, plan_pose.header.frame_id, ros::Duration(0.5));
+      // 获取全局路径规划的参考系到global_frame(costmap的参考坐标系  odom)的变换  
+      geometry_msgs::TransformStamped plan_to_global_transform = 
+          // 调用的是 BufferInterface 的函数  
+          tf.lookupTransform(global_frame,    // 目标坐标系 
+                                                    ros::Time(),
+                                                    plan_pose.header.frame_id,      // 原坐标系
+                                                    plan_pose.header.stamp, 
+                                                    plan_pose.header.frame_id, 
+                                                    ros::Duration(0.5));
       // std::cout << "global_frame: " << global_frame << std::endl;
       // std::cout << "plan_pose.header.frame_id: " << plan_pose.header.frame_id << std::endl;
       //let's get the pose of the robot in the frame of the plan
       // 将机器人的位姿转换到全局路径规划的坐标系上
+      // 将global_pose转换为plan_pose.header.frame_id指定的坐标系下的姿态，
+      // 并将结果存储在robot_pose中
       geometry_msgs::PoseStamped robot_pose;
       tf.transform(global_pose, robot_pose, plan_pose.header.frame_id);
 
@@ -146,7 +167,8 @@ namespace base_local_planner {
       geometry_msgs::PoseStamped newer_pose;
 
       //now we'll transform until points are outside of our distance threshold
-      // 将全局路径所有距离机器人距离小于阈值的路径点提取出来并转换到局部规划器的全局坐标下 放置于transformed_plan
+      // 将全局路径所有距离机器人距离小于阈值的路径点提取出来并转换到局部规划器的全局坐标下 
+      // 放置于transformed_plan
       while(i < (unsigned int)global_plan.size() && sq_dist <= sq_dist_threshold) {
         const geometry_msgs::PoseStamped& pose = global_plan[i];
         tf2::doTransform(pose, newer_pose, plan_to_global_transform);
