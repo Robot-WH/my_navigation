@@ -227,25 +227,17 @@ namespace dwa_local_planner {
       local_plan.clear();
       publishLocalPlan(local_plan);
       // 解锁倒档
-      dp_->enableReverse();   
-      reverse_ = true;  
+      // dp_->enableReverse();   
+      // reverse_ = true;  
       return false;
     } else {
       // 如果开启了倒档   则取消
-      if (reverse_) {
-        // static uint8_t reverse_time = 0;
-        // if (reverse_time > 10) {
-        //   reverse_ = false;  
-        //   dp_->disableReverse();   
-        //   reverse_time = 0;
-        // } else {
-        //   reverse_time++;  
-        // }
-        if (path.xv_ > 0.05) {
-          reverse_ = false;  
-          dp_->disableReverse();   
-        }
-      }
+      // if (reverse_) {
+      //   if (path.xv_ > 0.05) {
+      //     reverse_ = false;  
+      //     dp_->disableReverse();   
+      //   }
+      // }
     }
 
     ROS_DEBUG_NAMED("dwa_local_planner", "A valid velocity command of (%.2f, %.2f, %.2f) was found for this cycle.", 

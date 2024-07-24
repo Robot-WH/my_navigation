@@ -81,7 +81,7 @@ LocalPlannerLimits LocalPlannerUtil::getCurrentLimits() {
 
 void LocalPlannerUtil::enableReverse() {
   std::cout << "-----------------LocalPlannerUtil::enableReverse() 开启倒档" << std::endl;
-  limits_.min_vel_x = -0.2;  
+  limits_.min_vel_x = -0.1;  
   limits_.max_vel_x = 0.2;  
 }
 

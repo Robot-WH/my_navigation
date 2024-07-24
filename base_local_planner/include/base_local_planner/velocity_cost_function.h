@@ -5,17 +5,15 @@
 
 namespace base_local_planner {
 
-
-class LinearVelocityCostFunction: public base_local_planner::TrajectoryCostFunction {
+class VelocityCostFunction: public base_local_planner::TrajectoryCostFunction {
 public:
 
-  LinearVelocityCostFunction() {}
-  ~LinearVelocityCostFunction() {}
+  VelocityCostFunction() {}
+  ~VelocityCostFunction() {}
 
   double scoreTrajectory(Trajectory &traj);
 
   bool prepare() {return true;};
 };
-
 } /* namespace base_local_planner */
 #endif /* LINEARVELOCITY_COST_FUNCTION_H */

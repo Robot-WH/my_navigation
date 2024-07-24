@@ -58,7 +58,7 @@
 #include <base_local_planner/map_grid_cost_function.h>
 #include <base_local_planner/obstacle_cost_function.h>
 #include <base_local_planner/twirling_cost_function.h>
-#include <base_local_planner/linearVelocity_cost_function.h>
+#include <base_local_planner/velocity_cost_function.h>
 #include <base_local_planner/motionDirection_cost_function.h>
 #include <base_local_planner/simple_scored_sampling_planner.h>
 
@@ -183,7 +183,7 @@ namespace dwa_local_planner {
       base_local_planner::MapGridCostFunction goal_front_costs_;
       base_local_planner::MapGridCostFunction alignment_costs_;
       base_local_planner::TwirlingCostFunction twirling_costs_;
-      base_local_planner::LinearVelocityCostFunction linearVelocity_costs_;  
+      base_local_planner::VelocityCostFunction linearVelocity_costs_;  
       base_local_planner::MotionDirectionCostFunction motionDirection_costs_;  
       base_local_planner::SimpleScoredSamplingPlanner scored_sampling_planner_;
   };

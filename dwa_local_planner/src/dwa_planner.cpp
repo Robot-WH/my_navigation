@@ -83,7 +83,7 @@ namespace dwa_local_planner {
  
     // obstacle costs can vary due to scaling footprint feature
     obstacle_costs_.setParams(config.max_vel_trans, config.max_scaling_factor, config.scaling_speed);
-    linearVelocity_costs_.setScale(0.1);  
+    linearVelocity_costs_.setScale(0.001);  
     twirling_costs_.setScale(config.twirling_scale);
     std::cout << "config.twirling_scale: " << config.twirling_scale << std::endl;
 
@@ -217,7 +217,7 @@ namespace dwa_local_planner {
   bool DWAPlanner::checkTrajectory(
       Eigen::Vector3f pos,
       Eigen::Vector3f vel,
-      Eigen::Vector3f vel_samples){
+      Eigen::Vector3f vel_samples) {
     oscillation_costs_.resetOscillationFlags();
     base_local_planner::Trajectory traj;
     geometry_msgs::PoseStamped goal_pose = global_plan_.back();
@@ -284,7 +284,6 @@ namespace dwa_local_planner {
       alignment_costs_.setScale(0.0);
     }
   }
-
 
   /*
    * given the current state of the robot, find a good trajectory
