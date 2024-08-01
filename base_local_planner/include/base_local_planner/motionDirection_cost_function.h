@@ -11,7 +11,7 @@ public:
 
   MotionDirectionCostFunction() {}
   ~MotionDirectionCostFunction() {}
-
+  void SetGlobalTrajTargetIndex(const int& index);
   double scoreTrajectory(Trajectory &traj);
   void setTargetPoses(std::vector<geometry_msgs::PoseStamped> target_poses);
 
@@ -26,6 +26,7 @@ private:
       return angle;
   }
   std::vector<geometry_msgs::PoseStamped> target_poses_;
+  int target_idx_ = 10;
 
 };
 

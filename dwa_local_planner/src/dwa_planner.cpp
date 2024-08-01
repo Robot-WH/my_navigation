@@ -83,7 +83,7 @@ namespace dwa_local_planner {
  
     // obstacle costs can vary due to scaling footprint feature
     obstacle_costs_.setParams(config.max_vel_trans, config.max_scaling_factor, config.scaling_speed);
-    linearVelocity_costs_.setScale(0.001);  
+    velocity_costs_.setScale(0.001);  
     twirling_costs_.setScale(config.twirling_scale);
     std::cout << "config.twirling_scale: " << config.twirling_scale << std::endl;
 
@@ -173,7 +173,7 @@ namespace dwa_local_planner {
     // critics.push_back(&alignment_costs_); // 局部轨迹与局部路径的朝向一致
     // critics.push_back(&path_costs_); // 局部轨迹（根据当前速度外推出的轨迹）与局部路径（规划的路径）对比，局部轨迹离局部路径的横向偏差小，其代价值就小
     // critics.push_back(&goal_costs_); // 局部轨迹与局部路径的终点进行对比，希望距离小
-    critics.push_back(&linearVelocity_costs_); 
+    critics.push_back(&velocity_costs_); 
     // critics.push_back(&twirling_costs_); // 机器人旋转不要太大
     critics.push_back(&motionDirection_costs_);   
 
@@ -305,17 +305,58 @@ namespace dwa_local_planner {
     // std::cout << "global_plan_ size: " << global_plan_.size() << ", global_plan_.back() x: " << goal_pose.pose.position.x
     //   << ", y: " << goal_pose.pose.position.y << ",global_plan_.front() x:  " << global_plan_.front().pose.position.x
     //   << ", y: " << global_plan_.front().pose.position.y  << std::endl;
+    std::cout << "robot pos x: " << global_pose.pose.position.x << ",y: "
+      << global_pose.pose.position.y << "\n"; 
     // std::cout << "robot pos : " << pos.transpose() << std::endl;
     // prepare cost functions and generators for this run
     generator_.initialise(pos,
-        vel,
+        vel,  // 根据当前速度和加速度限制获取可行速度区间
         goal,      // 这里传入目标点只是为了求一个速度，只有当  use_dwa_ = 0 时才有用
         &limits,
         vsamples_);
 
+    // 计算目标点
+    // 计算机器人起始朝向与轨迹目标点之间的夹角，
+    // 夹角越大，说明机器人需要的旋转越多，则预瞄点越近
+    double robot_th = pos[2];
+    if (robot_th > M_PI) {
+        robot_th -= 2 * M_PI;
+    } else if (robot_th < -M_PI) {
+        robot_th += 2 * M_PI;
+    }
+    int look_index = 10; 
+    int res_look_index = look_index;
+    bool up_flag = 0;
+    bool down_flag = 0;  
+    std::cout << "路径长度："  << global_plan_.size() << "\n"; 
+    while (look_index < global_plan_.size() && look_index <= 40 && look_index >= 10) {
+      // 轨迹参考点 与 轨迹起点连线的倾角     
+      // 根据轨迹的速度规划选择轨迹参考点index
+      double direct = std::atan2(global_plan_[look_index].pose.position.y - pos[1], 
+                                                              global_plan_[look_index].pose.position.x - pos[0]);  // [-pi, pi]
+      // std::cout << "direct: " << direct << std::endl;
+      // std::cout << "traj_end_th: " << traj_end_th << std::endl;
+      double diff = std::fabs(direct - robot_th);
+      if (diff > M_PI) {
+        diff = 2 * M_PI - diff;   
+      }
+      std::cout << "look_index: " << look_index << ", diff: " << diff << "\n";
+      // 如果角度差小于10  
+      if (diff < 0.1745) {
+        look_index +=5;
+      } else {
+        look_index -=5;
+        // 角度从小于30增大到大于30，则直接退出
+        break;  
+      }
+    }
+    look_index = global_plan_.size() - 1;
+    motionDirection_costs_.SetGlobalTrajTargetIndex(look_index);
+
     result_traj_.cost_ = -7;
     // find best trajectory by sampling and scoring the samples
     std::vector<base_local_planner::Trajectory> all_explored;
+    // generator_在初始化时和scored_sampling_planner_进行了关联
     scored_sampling_planner_.findBestTrajectory(result_traj_, &all_explored);
 
     if(publish_traj_pc_)

@@ -226,23 +226,11 @@ namespace dwa_local_planner {
           "The dwa local planner failed to find a valid plan, cost functions discarded all candidates. This can mean there is an obstacle too close to the robot.");
       local_plan.clear();
       publishLocalPlan(local_plan);
-      // 解锁倒档
-      // dp_->enableReverse();   
-      // reverse_ = true;  
       return false;
-    } else {
-      // 如果开启了倒档   则取消
-      // if (reverse_) {
-      //   if (path.xv_ > 0.05) {
-      //     reverse_ = false;  
-      //     dp_->disableReverse();   
-      //   }
-      // }
     }
 
     ROS_DEBUG_NAMED("dwa_local_planner", "A valid velocity command of (%.2f, %.2f, %.2f) was found for this cycle.", 
                     cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z);
-
     // Fill out the local plan
     for(unsigned int i = 0; i < path.getPointsSize(); ++i) {
       double p_x, p_y, p_th;

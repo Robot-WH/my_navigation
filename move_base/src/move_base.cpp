@@ -981,7 +981,7 @@ namespace move_base {
       //if we're controlling, we'll attempt to find valid velocity commands
       case CONTROLLING:
         ROS_DEBUG_NAMED("move_base","In controlling state.");
-        std::cout << "CONTROLLING" << "\n"; 
+        // std::cout << "CONTROLLING" << "\n"; 
         //check to see if we've reached our goal
         // 这里面通过costmap_ros_获取机器人的位置，最后也是通过tf获取
         if(controllor->isGoalReached()) {
@@ -996,7 +996,7 @@ namespace move_base {
           as_->setSucceeded(move_base_msgs::MoveBaseResult(), "Goal reached.");
           return true;
         }
-        std::cout << "isGoalReached()" << "\n"; 
+        // std::cout << "isGoalReached()" << "\n"; 
         //check for an oscillation condition
         if(oscillation_timeout_ > 0.0 &&
             last_oscillation_reset_ + ros::Duration(oscillation_timeout_) < ros::Time::now())
@@ -1010,7 +1010,7 @@ namespace move_base {
         {
          boost::unique_lock<costmap_2d::Costmap2D::mutex_t> lock(*(controller_costmap_ros_->getCostmap()->getMutex()));
         // 进行局部规划 
-        std::cout << "computeVelocityCommands()" << "\n"; 
+        // std::cout << "computeVelocityCommands()" << "\n"; 
         if(controllor->computeVelocityCommands(cmd_vel)) {
           ROS_DEBUG_NAMED( "move_base", "Got a valid command from the local planner: %.3lf, %.3lf, %.3lf",
                            cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z );

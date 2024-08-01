@@ -183,7 +183,7 @@ namespace dwa_local_planner {
       base_local_planner::MapGridCostFunction goal_front_costs_;
       base_local_planner::MapGridCostFunction alignment_costs_;
       base_local_planner::TwirlingCostFunction twirling_costs_;
-      base_local_planner::VelocityCostFunction linearVelocity_costs_;  
+      base_local_planner::VelocityCostFunction velocity_costs_;  
       base_local_planner::MotionDirectionCostFunction motionDirection_costs_;  
       base_local_planner::SimpleScoredSamplingPlanner scored_sampling_planner_;
   };

@@ -87,7 +87,7 @@ namespace base_local_planner {
    */
   void prunePlan(const geometry_msgs::PoseStamped& global_pose, std::vector<geometry_msgs::PoseStamped>& plan, std::vector<geometry_msgs::PoseStamped>& global_plan);
 
-  /**
+    /**
    * @brief  Transforms the global plan of the robot from the planner frame to the frame of the costmap,
    * selects only the (first) part of the plan that is within the costmap area.
    * @param tf A reference to a transform listener
@@ -103,6 +103,24 @@ namespace base_local_planner {
       const costmap_2d::Costmap2D& costmap,
       const std::string& global_frame,
       std::vector<geometry_msgs::PoseStamped>& transformed_plan);
+
+  /**
+   * @brief  Transforms the global plan of the robot from the planner frame to the frame of the costmap,
+   * selects only the (first) part of the plan that is within the costmap area.
+   * @param tf A reference to a transform listener
+   * @param global_plan The plan to be transformed
+   * @param robot_pose The pose of the robot in the global frame (same as costmap)
+   * @param costmap A reference to the costmap being used so the window size for transforming can be computed
+   * @param global_frame The frame to transform the plan to
+   * @param transformed_plan Populated with the transformed plan
+   */
+  bool extractGlobalPlan(const tf2_ros::Buffer& tf,
+      const std::vector<geometry_msgs::PoseStamped>& global_plan,
+      const geometry_msgs::PoseStamped& global_robot_pose,
+      const costmap_2d::Costmap2D& costmap,
+      const std::string& global_frame,
+      std::vector<geometry_msgs::PoseStamped>& transformed_plan,
+      unsigned int& start_idx);
 
   /**
    * @brief  Returns last pose in plan

@@ -147,25 +147,132 @@ namespace base_local_planner {
       // 该阈值是代价地图尺寸的一半（以米为单位）。这通常用于确定哪些路径点（在全局计划中）是“接近”机器人的
       double dist_threshold = std::max(costmap.getSizeInCellsX() * costmap.getResolution() / 2.0,
                                        costmap.getSizeInCellsY() * costmap.getResolution() / 2.0);
-
       unsigned int i = 0;
       double sq_dist_threshold = dist_threshold * dist_threshold;
       double sq_dist = 0;
-
+      double old_sq_dist = 1000; 
       //we need to loop to a point on the plan that is within a certain distance of the robot
       // 遍历全局计划（global_plan）中的点，并找到第一个距离机器人不超过dist_threshold的点
       while(i < (unsigned int)global_plan.size()) {
         double x_diff = robot_pose.pose.position.x - global_plan[i].pose.position.x;
         double y_diff = robot_pose.pose.position.y - global_plan[i].pose.position.y;
         sq_dist = x_diff * x_diff + y_diff * y_diff;
-        if (sq_dist <= sq_dist_threshold) {
+        if (sq_dist <= sq_dist_threshold && sq_dist > old_sq_dist) {
           break;
         }
+        old_sq_dist = sq_dist; 
         ++i;
       }
 
       geometry_msgs::PoseStamped newer_pose;
+      //now we'll transform until points are outside of our distance threshold
+      // 将全局路径所有距离机器人距离小于阈值的路径点提取出来并转换到局部规划器的全局坐标下 
+      // 放置于transformed_plan
+      while(i < (unsigned int)global_plan.size() && sq_dist <= sq_dist_threshold) {
+        const geometry_msgs::PoseStamped& pose = global_plan[i];
+        tf2::doTransform(pose, newer_pose, plan_to_global_transform);
 
+        transformed_plan.push_back(newer_pose);
+
+        double x_diff = robot_pose.pose.position.x - global_plan[i].pose.position.x;
+        double y_diff = robot_pose.pose.position.y - global_plan[i].pose.position.y;
+        sq_dist = x_diff * x_diff + y_diff * y_diff;
+
+        ++i;
+      }
+    }
+    catch(tf2::LookupException& ex) {
+      ROS_ERROR("No Transform available Error: %s\n", ex.what());
+      return false;
+    }
+    catch(tf2::ConnectivityException& ex) {
+      ROS_ERROR("Connectivity Error: %s\n", ex.what());
+      return false;
+    }
+    catch(tf2::ExtrapolationException& ex) {
+      ROS_ERROR("Extrapolation Error: %s\n", ex.what());
+      if (!global_plan.empty())
+        ROS_ERROR("Global Frame: %s Plan Frame size %d: %s\n", global_frame.c_str(), (unsigned int)global_plan.size(), global_plan[0].header.frame_id.c_str());
+
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * @brief  将全局路径进行裁剪(只保留距离小于阈值的部分)，
+   *                并且将路径转换到global_frame系(costmap的全局参考系，一般为odom)得到transformed_plan
+   * 
+   * @param tf 
+   * @param global_plan 
+   * @param global_pose  机器人在costmap全局参考系(一般为odom)下的姿态 
+   * @param costmap 
+   * @param global_frame 
+   * @param transformed_plan[out] 
+   * @return true 
+   * @return false 
+   */
+  bool extractGlobalPlan(
+      const tf2_ros::Buffer& tf,
+      const std::vector<geometry_msgs::PoseStamped>& global_plan,
+      const geometry_msgs::PoseStamped& global_pose,
+      const costmap_2d::Costmap2D& costmap,
+      const std::string& global_frame,
+      std::vector<geometry_msgs::PoseStamped>& transformed_plan,
+      unsigned int& start_idx) {
+    transformed_plan.clear();
+
+    if (global_plan.empty()) {
+      ROS_ERROR("Received plan with zero length");
+      return false;
+    }
+
+    const geometry_msgs::PoseStamped& plan_pose = global_plan[0];
+    try {
+      // get plan_to_global_transform from plan frame to global_frame
+      // 获取全局路径规划的参考系到global_frame(costmap的参考坐标系  odom)的变换  
+      geometry_msgs::TransformStamped plan_to_global_transform = 
+          // 调用的是 BufferInterface 的函数  
+          tf.lookupTransform(global_frame,    // 目标坐标系 
+                                                    ros::Time(),
+                                                    plan_pose.header.frame_id,      // 原坐标系
+                                                    plan_pose.header.stamp, 
+                                                    plan_pose.header.frame_id, 
+                                                    ros::Duration(0.5));
+      // std::cout << "global_frame: " << global_frame << std::endl;
+      // std::cout << "plan_pose.header.frame_id: " << plan_pose.header.frame_id << std::endl;
+      //let's get the pose of the robot in the frame of the plan
+      // 将机器人的位姿转换到全局路径规划的坐标系上
+      // 将global_pose转换为plan_pose.header.frame_id指定的坐标系下的姿态，
+      // 并将结果存储在robot_pose中
+      geometry_msgs::PoseStamped robot_pose;
+      tf.transform(global_pose, robot_pose, plan_pose.header.frame_id);
+
+      //we'll discard points on the plan that are outside the local costmap
+      // 这行代码设置了一个距离阈值dist_threshold，它基于局部代价地图（costmap）的大小和分辨率。
+      // 该阈值是代价地图尺寸的一半（以米为单位）。这通常用于确定哪些路径点（在全局计划中）是“接近”机器人的
+      double dist_threshold = std::max(costmap.getSizeInCellsX() * costmap.getResolution() / 2.0,
+                                       costmap.getSizeInCellsY() * costmap.getResolution() / 2.0);
+
+      double sq_dist_threshold = dist_threshold * dist_threshold;
+      double sq_dist = 0;
+      double old_sq_dist = 1000; 
+      //we need to loop to a point on the plan that is within a certain distance of the robot
+      // 遍历全局计划（global_plan）中的点，并找到第一个距离机器人不超过dist_threshold的点
+      while(start_idx < (unsigned int)global_plan.size()) {
+        double x_diff = robot_pose.pose.position.x - global_plan[start_idx].pose.position.x;
+        double y_diff = robot_pose.pose.position.y - global_plan[start_idx].pose.position.y;
+        sq_dist = x_diff * x_diff + y_diff * y_diff;
+        if (sq_dist <= sq_dist_threshold && sq_dist > old_sq_dist) {
+          break;
+        }
+        old_sq_dist = sq_dist; 
+        ++start_idx;
+      }
+
+      geometry_msgs::PoseStamped newer_pose;
+      unsigned int i = start_idx; 
       //now we'll transform until points are outside of our distance threshold
       // 将全局路径所有距离机器人距离小于阈值的路径点提取出来并转换到局部规划器的全局坐标下 
       // 放置于transformed_plan

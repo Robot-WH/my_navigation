@@ -73,6 +73,7 @@ private:
   LocalPlannerLimits default_limits_;
   LocalPlannerLimits limits_;
   bool initialized_;
+  unsigned int start_idx_; 
 
 public:
 
@@ -98,6 +99,14 @@ public:
   bool setPlan(const std::vector<geometry_msgs::PoseStamped>& orig_global_plan);
 
   bool getLocalPlan(const geometry_msgs::PoseStamped& global_pose, std::vector<geometry_msgs::PoseStamped>& transformed_plan);
+
+  bool transformGlobalPlan(
+      const tf2_ros::Buffer& tf,
+      const std::vector<geometry_msgs::PoseStamped>& global_plan,
+      const geometry_msgs::PoseStamped& global_pose,
+      const costmap_2d::Costmap2D& costmap,
+      const std::string& global_frame,
+      std::vector<geometry_msgs::PoseStamped>& transformed_plan);
 
   costmap_2d::Costmap2D* getCostmap();
 

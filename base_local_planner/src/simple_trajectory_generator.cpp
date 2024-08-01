@@ -84,8 +84,8 @@ void SimpleTrajectoryGenerator::initialise(
 
   double min_vel_x = limits->min_vel_x;
   double max_vel_x = limits->max_vel_x;
-  std::cout << "limits->max_vel_x: " << limits->max_vel_x << std::endl;
-  std::cout << "limits->min_vel_x: " << limits->min_vel_x << std::endl;
+  // std::cout << "limits->max_vel_x: " << limits->max_vel_x << std::endl;
+  // std::cout << "limits->min_vel_x: " << limits->min_vel_x << std::endl;
   double min_vel_y = limits->min_vel_y;
   double max_vel_y = limits->max_vel_y;
 
@@ -112,11 +112,11 @@ void SimpleTrajectoryGenerator::initialise(
       min_vel[1] = std::max(min_vel_y, vel[1] - acc_lim[1] * sim_time_);
       min_vel[2] = std::max(min_vel_th, vel[2] - acc_lim[2] * sim_time_);
     } else {
-      std::cout << "use_dwa_" << "\n";
+      // std::cout << "use_dwa_" << "\n";
       // 根据当前速度与最大加速度 确定 采样速度的最大值   
       // with dwa do not accelerate beyond the first step, we only sample within velocities we reach in sim_period
       max_vel[0] = std::min(max_vel_x, vel[0] + acc_lim[0] * sim_period_);
-      std::cout << "max_vel[0]: " << max_vel[0] << "\n";  
+      // std::cout << "max_vel[0]: " << max_vel[0] << "\n";  
       //   << ",acc_lim[0]:" << acc_lim[0] 
       //   << ",max_vel_x: " << max_vel_x 
       //   << " ,vel[0] + acc_lim[0] * sim_period_: " << vel[0] + acc_lim[0] * sim_period_ << std::endl;
