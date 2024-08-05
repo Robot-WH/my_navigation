@@ -24,13 +24,23 @@ double VelocityCostFunction::scoreTrajectory(Trajectory &traj) {
   // std::cout << "VelocityCostFunction" << std::endl;
   // 线速度 0.1-1m左右       数量级别  1-100
   // float rot_factor = 50 * log10(std::fabs(traj.thetav_)) / log10(std::fabs(traj.xv_));
-  float rot_factor = 0;
-  // float rot_factor = std::fabs(traj.thetav_) * std::fabs(traj.xv_);
-  // 角速度 0 - 1左右     
+  float rot_factor = std::pow(1 + 5 * std::fabs(traj.xv_), 5 * std::fabs(traj.thetav_));
+  // 速度 0 - 1左右 
+  // 线速度为0.1时，速度项 大约 100 
+  // 线速度为1时，速度项 大约 1
+  // 线速度为1时，角速度为0.1(10度),  角速度项  约 5    
+  // 线速度为1时，角速度为0.5(30度), 角速度项  约 600
+  // 线速度为0.1时，角速度为0.1, 角速度项  约1.38
+  // 线速度为0.1时，角速度为0.5   角速度项   约  5
+  // if (traj.xv_ < 0) {
+  //   return (0.1 / (traj.xv_ * traj.xv_)) + 0.1 * rot_factor;  
+  // }
+  // return (0.01 / (traj.xv_ * traj.xv_)) + 0.1 * rot_factor;  // add cost for making the robot spin
+  // return 0.1 * rot_factor;  
   if (traj.xv_ < 0) {
-    return (5 / (traj.xv_ * traj.xv_)) * (1 + rot_factor);  
+    return (0.1 / (traj.xv_ * traj.xv_));  
   }
-  return (1 / (traj.xv_ * traj.xv_)) * (1 + rot_factor);  // add cost for making the robot spin
+  return (0.01 / (traj.xv_ * traj.xv_));  // add cost for making the robot spin
 }
 
 } /* namespace base_local_planner */

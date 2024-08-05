@@ -1024,8 +1024,7 @@ namespace move_base {
           vel_pub_.publish(cmd_vel);
           if(recovery_trigger_ == CONTROLLING_R)
             recovery_index_ = 0;
-        }
-        else {
+        } else {
           ROS_DEBUG_NAMED("move_base", "The local planner could not find a valid plan.");
           ros::Time attempt_end = last_valid_control_ + ros::Duration(controller_patience_);
 

@@ -47,6 +47,7 @@
 #include <tf2/utils.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/point_cloud2_iterator.h>
+#include "dwa_local_planner/color.hpp"
 
 namespace dwa_local_planner {
   void DWAPlanner::reconfigure(DWAPlannerConfig &config)
@@ -83,7 +84,7 @@ namespace dwa_local_planner {
  
     // obstacle costs can vary due to scaling footprint feature
     obstacle_costs_.setParams(config.max_vel_trans, config.max_scaling_factor, config.scaling_speed);
-    velocity_costs_.setScale(0.001);  
+    velocity_costs_.setScale(0.01);  
     twirling_costs_.setScale(config.twirling_scale);
     std::cout << "config.twirling_scale: " << config.twirling_scale << std::endl;
 
@@ -324,12 +325,12 @@ namespace dwa_local_planner {
     } else if (robot_th < -M_PI) {
         robot_th += 2 * M_PI;
     }
-    int look_index = 10; 
+    int look_index = 60; 
     int res_look_index = look_index;
     bool up_flag = 0;
     bool down_flag = 0;  
-    std::cout << "路径长度："  << global_plan_.size() << "\n"; 
-    while (look_index < global_plan_.size() && look_index <= 40 && look_index >= 10) {
+    // std::cout << "路径长度："  << global_plan_.size() << "\n"; 
+    while (look_index < global_plan_.size() && look_index <= 60 && look_index >= 60) {
       // 轨迹参考点 与 轨迹起点连线的倾角     
       // 根据轨迹的速度规划选择轨迹参考点index
       double direct = std::atan2(global_plan_[look_index].pose.position.y - pos[1], 
@@ -342,7 +343,7 @@ namespace dwa_local_planner {
       }
       std::cout << "look_index: " << look_index << ", diff: " << diff << "\n";
       // 如果角度差小于10  
-      if (diff < 0.1745) {
+      if (diff < 0.2) {
         look_index +=5;
       } else {
         look_index -=5;
@@ -350,7 +351,7 @@ namespace dwa_local_planner {
         break;  
       }
     }
-    look_index = global_plan_.size() - 1;
+    // look_index = global_plan_.size() - 1;
     motionDirection_costs_.SetGlobalTrajTargetIndex(look_index);
 
     result_traj_.cost_ = -7;
@@ -377,7 +378,7 @@ namespace dwa_local_planner {
         unsigned int num_points = 0;
         for(std::vector<base_local_planner::Trajectory>::iterator t=all_explored.begin(); t != all_explored.end(); ++t)
         {
-            if (t->cost_<0)
+            if (t->cost_< 0)
               continue;
             num_points += t->getPointsSize();
         }
@@ -386,7 +387,7 @@ namespace dwa_local_planner {
         sensor_msgs::PointCloud2Iterator<float> iter_x(traj_cloud, "x");
         for(std::vector<base_local_planner::Trajectory>::iterator t=all_explored.begin(); t != all_explored.end(); ++t)
         {
-            if(t->cost_<0)
+            if(t->cost_< 0)
                 continue;
             // Fill out the plan
             for(unsigned int i = 0; i < t->getPointsSize(); ++i) {
@@ -428,6 +429,12 @@ namespace dwa_local_planner {
       drive_velocities.pose.position.z = 0;
       tf2::Quaternion q;
       q.setRPY(0, 0, result_traj_.thetav_);
+      if (result_traj_.thetav_ < -0.2 || result_traj_.thetav_ > 0.2) {
+        std::cout << color::RED << "result_traj_.thetav_ error !" << result_traj_.thetav_
+          << color::RESET << "\n";
+      } else {
+        std::cout << color::GREEN << "result_traj_.thetav_ OK!" << color::RESET << "\n";
+      }
       tf2::convert(q, drive_velocities.pose.orientation);
     }
 

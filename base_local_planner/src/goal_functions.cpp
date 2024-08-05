@@ -265,6 +265,7 @@ namespace base_local_planner {
         double y_diff = robot_pose.pose.position.y - global_plan[start_idx].pose.position.y;
         sq_dist = x_diff * x_diff + y_diff * y_diff;
         if (sq_dist <= sq_dist_threshold && sq_dist > old_sq_dist) {
+          start_idx--;
           break;
         }
         old_sq_dist = sq_dist; 

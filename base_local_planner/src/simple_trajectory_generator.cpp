@@ -122,13 +122,21 @@ void SimpleTrajectoryGenerator::initialise(
       //   << " ,vel[0] + acc_lim[0] * sim_period_: " << vel[0] + acc_lim[0] * sim_period_ << std::endl;
       max_vel[1] = std::min(max_vel_y, vel[1] + acc_lim[1] * sim_period_);
       max_vel[2] = std::min(max_vel_th, vel[2] + acc_lim[2] * sim_period_);
-      // std::cout << "max_vel[2]: " << max_vel[2] << std::endl;
+      // std::cout << "max_vel[1]: " << max_vel[1] << std::endl;
+      // std::cout << "max_vel_y: " << max_vel_y << std::endl;
+      std::cout << "max_vel_th: " << max_vel_th << std::endl;
+      std::cout << "vel[2]: " << vel[2] << std::endl;
+      std::cout << "acc_lim[2]: " << acc_lim[2] << std::endl;
+      std::cout << "sim_period: " << sim_period_ << std::endl;
+      std::cout << "max_vel[2]: " << max_vel[2] << std::endl;
 
       min_vel[0] = std::max(min_vel_x, vel[0] - acc_lim[0] * sim_period_);
       // std::cout << "min_vel[0]: " << min_vel[0] << std::endl;
       min_vel[1] = std::max(min_vel_y, vel[1] - acc_lim[1] * sim_period_);
+      // std::cout << "min_vel[1]: " << min_vel[1] << ",vel[1]: " << vel[1] << std::endl;
       min_vel[2] = std::max(min_vel_th, vel[2] - acc_lim[2] * sim_period_);
-      // std::cout << "min_vel[2]: " << min_vel[2] << std::endl;
+      std::cout << "min_vel_th: " << min_vel_th << std::endl;
+      std::cout << "min_vel[2]: " << min_vel[2] << std::endl;
     }
 
     Eigen::Vector3f vel_samp = Eigen::Vector3f::Zero();
@@ -231,7 +239,7 @@ bool SimpleTrajectoryGenerator::generateTrajectory(
   if (discretize_by_time_) {
     num_steps = ceil(sim_time_ / sim_granularity_);
   } else {
-    //compute the number of steps we must take along this trajectory to be "safe"
+    // compute the number of steps we must take along this trajectory to be "safe"
     double sim_time_distance = vmag * sim_time_; // the distance the robot would travel in sim_time if it did not change velocity
     double sim_time_angle = fabs(sample_target_vel[2]) * sim_time_; // the angle the robot would rotate in sim_time
     num_steps =
