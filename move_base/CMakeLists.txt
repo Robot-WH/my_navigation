@@ -26,7 +26,7 @@ find_package(catkin REQUIRED
 find_package(Eigen3 REQUIRED)
 add_definitions(${EIGEN3_DEFINITIONS})
 
-# dynamic reconfigure
+# dynamic reconfigure     在/devel中生成 DwaPlannerConfig.h
 generate_dynamic_reconfigure_options(
     cfg/MoveBase.cfg
 )

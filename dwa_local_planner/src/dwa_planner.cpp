@@ -50,7 +50,7 @@
 #include "dwa_local_planner/color.hpp"
 
 namespace dwa_local_planner {
-  void DWAPlanner::reconfigure(DWAPlannerConfig &config)
+  void DWAPlanner::reconfigure(DwaPlannerConfig &config)
   {
     std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!DWAPlanner::reconfigure" << std::endl;
     boost::mutex::scoped_lock l(configuration_mutex_);
@@ -325,12 +325,12 @@ namespace dwa_local_planner {
     } else if (robot_th < -M_PI) {
         robot_th += 2 * M_PI;
     }
-    int look_index = 60; 
+    int look_index = 20; 
     int res_look_index = look_index;
     bool up_flag = 0;
     bool down_flag = 0;  
     // std::cout << "路径长度："  << global_plan_.size() << "\n"; 
-    while (look_index < global_plan_.size() && look_index <= 60 && look_index >= 60) {
+    while (look_index < global_plan_.size() && look_index <= 20 && look_index >= 20) {
       // 轨迹参考点 与 轨迹起点连线的倾角     
       // 根据轨迹的速度规划选择轨迹参考点index
       double direct = std::atan2(global_plan_[look_index].pose.position.y - pos[1], 

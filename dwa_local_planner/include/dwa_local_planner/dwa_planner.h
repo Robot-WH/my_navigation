@@ -41,7 +41,7 @@
 #include <Eigen/Core>
 
 
-#include <dwa_local_planner/DWAPlannerConfig.h>
+#include <dwa_local_planner/DwaPlannerConfig.h>
 
 //for creating a local cost grid
 #include <base_local_planner/map_grid_visualizer.h>
@@ -82,7 +82,7 @@ namespace dwa_local_planner {
       /**
        * @brief Reconfigures the trajectory planner
        */
-      void reconfigure(DWAPlannerConfig &cfg);
+      void reconfigure(DwaPlannerConfig &cfg);
 
       /**
        * @brief  Check if a trajectory is legal for a position/velocity pair

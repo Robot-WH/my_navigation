@@ -76,6 +76,7 @@ void SimpleTrajectoryGenerator::initialise(
   // std::cout << "min_vel_th: " << min_vel_th << std::endl;
   discretize_by_time_ = discretize_by_time;
   Eigen::Vector3f acc_lim = limits->getAccLimits();
+  acc_lim[2] = 10000;
   pos_ = pos;
   vel_ = vel;     // 需要当前速度是为了后面根据最大加速度判断采样速度可不可取
   limits_ = limits;

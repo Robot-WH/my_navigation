@@ -29,7 +29,7 @@ add_definitions(${EIGEN3_DEFINITIONS})
 
 # dynamic reconfigure
 generate_dynamic_reconfigure_options(
-    cfg/DWAPlanner.cfg
+    cfg/DwaPlanner.cfg
 )
 
 catkin_package(

@@ -54,7 +54,7 @@ PLUGINLIB_EXPORT_CLASS(dwa_local_planner::DWAPlannerROS, nav_core::BaseLocalPlan
 
 namespace dwa_local_planner {
 
-  void DWAPlannerROS::reconfigureCB(DWAPlannerConfig &config, uint32_t level) {
+  void DWAPlannerROS::reconfigureCB(DwaPlannerConfig &config, uint32_t level) {
       std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!DWAPlannerROS::reconfigureCB" << std::endl;
       if (setup_ && config.restore_defaults) {
         config = default_config_;
@@ -78,6 +78,7 @@ namespace dwa_local_planner {
       limits.acc_lim_x = config.acc_lim_x;
       limits.acc_lim_y = config.acc_lim_y;
       limits.acc_lim_theta = config.acc_lim_theta;
+      // std::cout << "config.acc_lim_theta： " << config.acc_lim_theta << "\n";
       limits.acc_lim_trans = config.acc_lim_trans;
       limits.xy_goal_tolerance = config.xy_goal_tolerance;
       limits.yaw_goal_tolerance = config.yaw_goal_tolerance;
@@ -119,6 +120,7 @@ namespace dwa_local_planner {
       {
         odom_helper_.setOdomTopic( odom_topic_ );
       }
+      std::cout << "DWA sub odom: " << odom_topic_ << "\n";
       
       initialized_ = true;
 
@@ -130,8 +132,8 @@ namespace dwa_local_planner {
       nav_core::warnRenamedParameter(private_nh, "acc_lim_trans", "acc_limit_trans");
       nav_core::warnRenamedParameter(private_nh, "theta_stopped_vel", "rot_stopped_vel");
       
-      dsrv_ = new dynamic_reconfigure::Server<DWAPlannerConfig>(private_nh);
-      dynamic_reconfigure::Server<DWAPlannerConfig>::CallbackType cb = boost::bind(&DWAPlannerROS::reconfigureCB, this, _1, _2);
+      dsrv_ = new dynamic_reconfigure::Server<DwaPlannerConfig>(private_nh);
+      dynamic_reconfigure::Server<DwaPlannerConfig>::CallbackType cb = boost::bind(&DWAPlannerROS::reconfigureCB, this, _1, _2);
       dsrv_->setCallback(cb);
     }
     else{

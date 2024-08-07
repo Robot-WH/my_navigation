@@ -43,7 +43,7 @@
 #include <tf2_ros/buffer.h>
 
 #include <dynamic_reconfigure/server.h>
-#include <dwa_local_planner/DWAPlannerConfig.h>
+#include <dwa_local_planner/DwaPlannerConfig.h>
 
 #include <angles/angles.h>
 
@@ -124,7 +124,7 @@ namespace dwa_local_planner {
       /**
        * @brief Callback to update the local planner's parameters based on dynamic reconfigure
        */
-      void reconfigureCB(DWAPlannerConfig &config, uint32_t level);
+      void reconfigureCB(DwaPlannerConfig &config, uint32_t level);
 
       void publishLocalPlan(std::vector<geometry_msgs::PoseStamped>& path);
 
@@ -141,8 +141,8 @@ namespace dwa_local_planner {
 
       costmap_2d::Costmap2DROS* costmap_ros_;
 
-      dynamic_reconfigure::Server<DWAPlannerConfig> *dsrv_;
-      dwa_local_planner::DWAPlannerConfig default_config_;
+      dynamic_reconfigure::Server<DwaPlannerConfig> *dsrv_;
+      dwa_local_planner::DwaPlannerConfig default_config_;
       bool setup_;
       geometry_msgs::PoseStamped current_pose_;
 
