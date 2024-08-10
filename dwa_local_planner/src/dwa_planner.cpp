@@ -175,7 +175,6 @@ namespace dwa_local_planner {
     // critics.push_back(&path_costs_); // 局部轨迹（根据当前速度外推出的轨迹）与局部路径（规划的路径）对比，局部轨迹离局部路径的横向偏差小，其代价值就小
     // critics.push_back(&goal_costs_); // 局部轨迹与局部路径的终点进行对比，希望距离小
     critics.push_back(&velocity_costs_); 
-    // critics.push_back(&twirling_costs_); // 机器人旋转不要太大
     critics.push_back(&motionDirection_costs_);   
 
     // trajectory generators
@@ -325,29 +324,55 @@ namespace dwa_local_planner {
     } else if (robot_th < -M_PI) {
         robot_th += 2 * M_PI;
     }
-    int look_index = 20; 
+    // int look_index = 10; 
+    // int res_look_index = look_index;
+    // bool up_flag = 0;
+    // bool down_flag = 0;  
+    // // std::cout << "路径长度："  << global_plan_.size() << "\n"; 
+    // while (look_index < global_plan_.size() && look_index <= 30 && look_index >= 10) {
+    //   // 轨迹参考点 与 轨迹起点连线的倾角     
+    //   // 根据轨迹的速度规划选择轨迹参考点index
+    //   double direct = std::atan2(global_plan_[look_index].pose.position.y - pos[1], 
+    //                                                           global_plan_[look_index].pose.position.x - pos[0]);  // [-pi, pi]
+    //   // std::cout << "direct: " << direct << std::endl;
+    //   // std::cout << "traj_end_th: " << traj_end_th << std::endl;
+    //   double diff = std::fabs(direct - robot_th);
+    //   if (diff > M_PI) {
+    //     diff = 2 * M_PI - diff;   
+    //   }
+    //   std::cout << "look_index: " << look_index << ", diff: " << diff << "\n";
+    //   // 如果角度差小于10  
+    //   if (diff < 0.3) {
+    //     look_index +=5;
+    //   } else {
+    //     look_index -=5;
+    //     // 角度从小于30增大到大于30，则直接退出
+    //     break;  
+    //   }
+    // }
+    int look_index = 40; 
     int res_look_index = look_index;
     bool up_flag = 0;
     bool down_flag = 0;  
     // std::cout << "路径长度："  << global_plan_.size() << "\n"; 
-    while (look_index < global_plan_.size() && look_index <= 20 && look_index >= 20) {
+    while (look_index < global_plan_.size() && look_index >= 10) {
       // 轨迹参考点 与 轨迹起点连线的倾角     
       // 根据轨迹的速度规划选择轨迹参考点index
-      double direct = std::atan2(global_plan_[look_index].pose.position.y - pos[1], 
-                                                              global_plan_[look_index].pose.position.x - pos[0]);  // [-pi, pi]
+      double direct1 = std::atan2(global_plan_[look_index].pose.position.y - global_plan_[0].pose.position.y, 
+                                                              global_plan_[look_index].pose.position.x - global_plan_[0].pose.position.x);  // [-pi, pi]
+      double direct2 = std::atan2(global_plan_[look_index / 2].pose.position.y - global_plan_[0].pose.position.y, 
+                                                              global_plan_[look_index / 2].pose.position.x - global_plan_[0].pose.position.x);  // [-pi, pi]
       // std::cout << "direct: " << direct << std::endl;
       // std::cout << "traj_end_th: " << traj_end_th << std::endl;
-      double diff = std::fabs(direct - robot_th);
+      double diff = std::fabs(direct1 - direct2);
       if (diff > M_PI) {
         diff = 2 * M_PI - diff;   
       }
       std::cout << "look_index: " << look_index << ", diff: " << diff << "\n";
       // 如果角度差小于10  
-      if (diff < 0.2) {
-        look_index +=5;
+      if (diff > 0.3) {
+        look_index /= 2;
       } else {
-        look_index -=5;
-        // 角度从小于30增大到大于30，则直接退出
         break;  
       }
     }

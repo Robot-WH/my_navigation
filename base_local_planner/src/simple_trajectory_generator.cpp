@@ -77,6 +77,7 @@ void SimpleTrajectoryGenerator::initialise(
   discretize_by_time_ = discretize_by_time;
   Eigen::Vector3f acc_lim = limits->getAccLimits();
   acc_lim[2] = 10000;
+  acc_lim[0] = 10000;
   pos_ = pos;
   vel_ = vel;     // 需要当前速度是为了后面根据最大加速度判断采样速度可不可取
   limits_ = limits;
@@ -117,14 +118,15 @@ void SimpleTrajectoryGenerator::initialise(
       // 根据当前速度与最大加速度 确定 采样速度的最大值   
       // with dwa do not accelerate beyond the first step, we only sample within velocities we reach in sim_period
       max_vel[0] = std::min(max_vel_x, vel[0] + acc_lim[0] * sim_period_);
-      // std::cout << "max_vel[0]: " << max_vel[0] << "\n";  
-      //   << ",acc_lim[0]:" << acc_lim[0] 
-      //   << ",max_vel_x: " << max_vel_x 
-      //   << " ,vel[0] + acc_lim[0] * sim_period_: " << vel[0] + acc_lim[0] * sim_period_ << std::endl;
+      std::cout << "max_vel[0]: " << max_vel[0] 
+        << ",acc_lim[0]:" << acc_lim[0] 
+        << ",max_vel_x: " << max_vel_x 
+        << " ,vel[0] + acc_lim[0] * sim_period_: " << vel[0] + acc_lim[0] * sim_period_ << std::endl;
       max_vel[1] = std::min(max_vel_y, vel[1] + acc_lim[1] * sim_period_);
       max_vel[2] = std::min(max_vel_th, vel[2] + acc_lim[2] * sim_period_);
       // std::cout << "max_vel[1]: " << max_vel[1] << std::endl;
       // std::cout << "max_vel_y: " << max_vel_y << std::endl;
+      // std::cout << "max_vel_x: " << max_vel_x << std::endl;
       std::cout << "max_vel_th: " << max_vel_th << std::endl;
       std::cout << "vel[2]: " << vel[2] << std::endl;
       std::cout << "acc_lim[2]: " << acc_lim[2] << std::endl;
