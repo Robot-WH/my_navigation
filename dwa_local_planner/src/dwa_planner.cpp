@@ -47,6 +47,8 @@
 #include <tf2/utils.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/point_cloud2_iterator.h>
+#include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
 #include "dwa_local_planner/color.hpp"
 
 namespace dwa_local_planner {
@@ -163,6 +165,7 @@ namespace dwa_local_planner {
     private_nh.param("global_frame_id", frame_id_, std::string("odom"));
 
     traj_cloud_pub_ = private_nh.advertise<sensor_msgs::PointCloud2>("trajectory_cloud", 1);
+    markers_pub = private_nh.advertise<visualization_msgs::MarkerArray>("/front_target", 1);  
     private_nh.param("publish_traj_pc", publish_traj_pc_, false);
 
     // set up all the cost functions that will be applied in order
@@ -324,32 +327,6 @@ namespace dwa_local_planner {
     } else if (robot_th < -M_PI) {
         robot_th += 2 * M_PI;
     }
-    // int look_index = 10; 
-    // int res_look_index = look_index;
-    // bool up_flag = 0;
-    // bool down_flag = 0;  
-    // // std::cout << "路径长度："  << global_plan_.size() << "\n"; 
-    // while (look_index < global_plan_.size() && look_index <= 30 && look_index >= 10) {
-    //   // 轨迹参考点 与 轨迹起点连线的倾角     
-    //   // 根据轨迹的速度规划选择轨迹参考点index
-    //   double direct = std::atan2(global_plan_[look_index].pose.position.y - pos[1], 
-    //                                                           global_plan_[look_index].pose.position.x - pos[0]);  // [-pi, pi]
-    //   // std::cout << "direct: " << direct << std::endl;
-    //   // std::cout << "traj_end_th: " << traj_end_th << std::endl;
-    //   double diff = std::fabs(direct - robot_th);
-    //   if (diff > M_PI) {
-    //     diff = 2 * M_PI - diff;   
-    //   }
-    //   std::cout << "look_index: " << look_index << ", diff: " << diff << "\n";
-    //   // 如果角度差小于10  
-    //   if (diff < 0.3) {
-    //     look_index +=5;
-    //   } else {
-    //     look_index -=5;
-    //     // 角度从小于30增大到大于30，则直接退出
-    //     break;  
-    //   }
-    // }
     int look_index = 40; 
     int res_look_index = look_index;
     bool up_flag = 0;
@@ -427,6 +404,35 @@ namespace dwa_local_planner {
             }
         }
         traj_cloud_pub_.publish(traj_cloud);
+
+        // 可视化前视点
+        visualization_msgs::MarkerArray markers;
+        markers.markers.resize(1);
+        ros::Time stamp = ros::Time::now();  
+        // node markers    位姿节点
+        visualization_msgs::Marker& traj_marker = markers.markers[0];
+        traj_marker.header.frame_id = "odom";
+        traj_marker.header.stamp = stamp;
+        traj_marker.ns = "nodes";
+        traj_marker.id = 0;
+        traj_marker.type = visualization_msgs::Marker::SPHERE_LIST;
+        traj_marker.pose.orientation.w = 1.0;
+        traj_marker.scale.x = traj_marker.scale.y = traj_marker.scale.z = 0.1;
+        // 数量
+        traj_marker.points.resize(1);
+        // 颜色
+        traj_marker.colors.resize(1);
+        // 设置位置
+        traj_marker.points[0].x = global_plan_[look_index].pose.position.x;
+        traj_marker.points[0].y = global_plan_[look_index].pose.position.y;
+        traj_marker.points[0].z = 0;
+        // 颜色
+        traj_marker.colors[0].r = 1.0;
+        traj_marker.colors[0].g = 0;
+        traj_marker.colors[0].b = 0.0;
+        traj_marker.colors[0].a = 1.0;
+
+        markers_pub.publish(markers);
     }
 
     // verbose publishing of point clouds
