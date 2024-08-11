@@ -47,6 +47,6 @@ local_costmap:
 
    #cost_scaling_factor and inflation_radius were now moved to the inflation_layer ns
    inflation_layer:
-      cost_scaling_factor:  3  # 越大 衰减的越快，对障碍物越敏感，越小则对障碍物越不敏感
-      inflation_radius:   0.5  # max. distance from an obstacle at which costs are incurred for planning paths.
+      cost_scaling_factor:  10  # 越大 衰减的越快，对障碍物越敏感，越小则对障碍物越不敏感
+      inflation_radius:   0.3  # max. distance from an obstacle at which costs are incurred for planning paths.
 

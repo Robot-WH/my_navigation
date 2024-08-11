@@ -38,7 +38,7 @@ double VelocityCostFunction::scoreTrajectory(Trajectory &traj) {
   // return (0.01 / (traj.xv_ * traj.xv_)) + 0.1 * rot_factor;  // add cost for making the robot spin
   // return 0.1 * rot_factor;  
   if (traj.xv_ < 0) {
-    return (1 / (traj.xv_ * traj.xv_)) + rot_factor;  
+    return (0.5 / (traj.xv_ * traj.xv_)) + rot_factor;  
   }
   return (0.1 / (traj.xv_ * traj.xv_)) + rot_factor;  // add cost for making the robot spin
 }

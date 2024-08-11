@@ -23,9 +23,8 @@ void MotionDirectionCostFunction::SetGlobalTrajTargetIndex(const int& index) {
 }
 
 double MotionDirectionCostFunction::scoreTrajectory(Trajectory &traj) {                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
-  std::cout << "MotionDirectionCostFunction" << std::endl;
-  std::cout << "traj vx:" << traj.xv_ << ", traj.yv_: " << traj.yv_ << ", traj.thetav_" << traj.thetav_ << std::endl;
- 
+  // std::cout << "MotionDirectionCostFunction" << std::endl;
+  // std::cout << "traj vx:" << traj.xv_ << ", traj.yv_: " << traj.yv_ << ", traj.thetav_" << traj.thetav_ << std::endl;
   const auto& target_point = target_poses_[target_idx_];
   // std::cout << "target_point x: " << target_point.pose.position.x  << ",y: " << target_point.pose.position.y  << std::endl; 
   // 获取该轨迹末端的位姿

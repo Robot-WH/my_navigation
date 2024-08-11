@@ -120,7 +120,7 @@ namespace base_local_planner {
         gen_success = gen_->nextTrajectory(loop_traj);
         if (gen_success == false) {
           // TODO use this for debugging
-          std::cout << "gen_success == false !!!!!!!!!!!!!!!!!!!!!!!!!!!" << "\n";
+          // std::cout << "gen_success == false !!!!!!!!!!!!!!!!!!!!!!!!!!!" << "\n";
           continue;
         }
         // 对该轨迹进行打分  

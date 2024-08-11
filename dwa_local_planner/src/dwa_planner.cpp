@@ -218,7 +218,7 @@ namespace dwa_local_planner {
 
   bool DWAPlanner::setPlan(const std::vector<geometry_msgs::PoseStamped>& orig_global_plan) {
     oscillation_costs_.resetOscillationFlags();
-    look_index_ = 5;
+    // look_index_ = 5;
     return planner_util_->setPlan(orig_global_plan);    // 将orig_global_plan设置给LocalPlannerUtil的global_plan_
   }
 
@@ -328,7 +328,6 @@ namespace dwa_local_planner {
         &limits,
         vsamples_,
         true);
-
     // 计算目标点
     // 计算机器人起始朝向与轨迹目标点之间的夹角，
     // 夹角越大，说明机器人需要的旋转越多，则预瞄点越近
@@ -338,34 +337,6 @@ namespace dwa_local_planner {
     } else if (robot_th < -M_PI) {
         robot_th += 2 * M_PI;
     }
-    // int look_index = 40; 
-    // int res_look_index = look_index;
-    // bool up_flag = 0;
-    // bool down_flag = 0;  
-    // // std::cout << "路径长度："  << global_plan_.size() << "\n"; 
-    // while (look_index < global_plan_.size() && look_index >= 10) {
-    //   // 轨迹参考点 与 轨迹起点连线的倾角     
-    //   // 根据轨迹的速度规划选择轨迹参考点index
-    //   double direct1 = std::atan2(global_plan_[look_index].pose.position.y - global_plan_[0].pose.position.y, 
-    //                                                           global_plan_[look_index].pose.position.x - global_plan_[0].pose.position.x);  // [-pi, pi]
-    //   double direct2 = std::atan2(global_plan_[look_index / 2].pose.position.y - global_plan_[0].pose.position.y, 
-    //                                                           global_plan_[look_index / 2].pose.position.x - global_plan_[0].pose.position.x);  // [-pi, pi]
-    //   // std::cout << "direct: " << direct << std::endl;
-    //   // std::cout << "traj_end_th: " << traj_end_th << std::endl;
-    //   double diff = std::fabs(direct1 - direct2);
-    //   if (diff > M_PI) {
-    //     diff = 2 * M_PI - diff;   
-    //   }
-    //   std::cout << "look_index: " << look_index << ", diff: " << diff << "\n";
-    //   // 如果角度差小于10  
-    //   if (diff > 0.3) {
-    //     look_index /= 2;
-    //   } else {
-    //     break;  
-    //   }
-    // }
-    // std::cout << "路径长度："  << global_plan_.size() << "\n"; 
-    // while (look_index < global_plan_.size() && look_index >= 10) {
     // 轨迹参考点 与 轨迹起点连线的倾角     
     // 根据轨迹的速度规划选择轨迹参考点index
     double direct1 = std::atan2(global_plan_[look_index_].pose.position.y - global_plan_[0].pose.position.y, 
@@ -378,22 +349,20 @@ namespace dwa_local_planner {
     if (diff > M_PI) {
       diff = 2 * M_PI - diff;   
     }
-    std::cout << "look_index: " << look_index_ << ", diff: " << diff << "\n";
-    // 如果角度差大于20 则拉近前视点  
-    if (diff > 0.35) {
+    // std::cout << "look_index: " << look_index_ << ", diff: " << diff << "\n";
+    // 如果角度差大于10 则拉近前视点  
+    if (diff > 0.1745) {
       if (look_index_ >= 10) {
         look_index_ -= look_incre_;
       }
-    } else if (diff < 0.1745) {
-      // 如果角度差小于10  则拉远前视点
+    } else if (diff < 0.0524) {
+      // 如果角度差小于5  则拉远前视点
       if (look_index_ < global_plan_.size() - look_incre_ && look_index_ <= 40) {
         look_index_ += look_incre_;
       }
     } 
-    // }
-    // look_index = global_plan_.size() - 1;
-    motionDirection_costs_.SetGlobalTrajTargetIndex(look_index_);
 
+    motionDirection_costs_.SetGlobalTrajTargetIndex(look_index_);
     result_traj_.cost_ = -7;
     // find best trajectory by sampling and scoring the samples
     std::vector<base_local_planner::Trajectory> all_explored;
