@@ -1,7 +1,9 @@
 DWAPlannerROS:
   odom_topic: "sss"
+  use_dwa: true
   min_vel_trans: 0.01
-  max_vel_trans: 1
+  max_vel_trans: 2
+  max_vel_theta: 1  # choose slightly less than the base's capability     最大60度/s
   # Robot Configuration Parameters - Kobuki
   max_vel_x: 0.5
   min_vel_x: -0.2
@@ -16,8 +18,6 @@ DWAPlannerROS:
   # Warning!
   #   do not set min_trans_vel to 0.0 otherwise dwa will always think translational velocities
   #   are non-negligible and small in place rotational velocities will be created.
-
-  max_vel_theta: 1  # choose slightly less than the base's capability     最大60度/s
   rot_stopped_vel: 0.1
   
   # acc_lim_x: 1 # maximum is theoretically 2.0, but we 
@@ -34,7 +34,10 @@ DWAPlannerROS:
 
 # Forward Simulation Parameters
   sim_time: 1       # 1.7
-  vx_samples: 6       # 3
+  # sim_granularity: 0.025     # 生成轨迹的距离分辨率  单位  时间或距离  
+  sim_granularity: 0.01     # 生成轨迹的距离分辨率  单位  时间或距离  
+  angular_sim_granularity: 0.1    # 生成轨迹的角度分辨率   
+  vx_samples: 20       # 3
   vy_samples: 1       # diff drive robot, there is only one sample
   vth_samples: 6  # 20
   # vx_samples: 2       # 3
@@ -58,7 +61,5 @@ DWAPlannerROS:
   publish_cost_grid_pc: true
   global_frame_id: odom
 
-
 # Differential-drive robot configuration - necessary?
 #  holonomic_robot: false
-

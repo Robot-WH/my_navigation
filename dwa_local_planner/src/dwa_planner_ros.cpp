@@ -133,8 +133,9 @@ namespace dwa_local_planner {
       nav_core::warnRenamedParameter(private_nh, "min_vel_theta", "min_rot_vel");
       nav_core::warnRenamedParameter(private_nh, "acc_lim_trans", "acc_limit_trans");
       nav_core::warnRenamedParameter(private_nh, "theta_stopped_vel", "rot_stopped_vel");
-      
+      // 构造一个DwaPlannerConfig的参数服务器
       dsrv_ = new dynamic_reconfigure::Server<DwaPlannerConfig>(private_nh);
+      // 参数读取完毕后调用回调函数 
       dynamic_reconfigure::Server<DwaPlannerConfig>::CallbackType cb = boost::bind(&DWAPlannerROS::reconfigureCB, this, _1, _2);
       dsrv_->setCallback(cb);
     }

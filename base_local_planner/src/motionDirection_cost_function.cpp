@@ -31,7 +31,8 @@ double MotionDirectionCostFunction::scoreTrajectory(Trajectory &traj) {
   // 获取该轨迹末端的位姿
   if (traj.getPointsSize() == 0) return 0;   
   double traj_end_x, traj_end_y, traj_end_th;
-  traj.getEndpoint(traj_end_x, traj_end_y, traj_end_th);
+  // traj.getEndpoint(traj_end_x, traj_end_y, traj_end_th);
+  traj.getPoint(traj.getPointsSize() / 2, traj_end_x, traj_end_y, traj_end_th);
   NormalizationAngle(traj_end_th); 
 
   // std::cout << "traj_end_x: " << traj_end_x  << ",traj_end_y: " << traj_end_y << std::endl; 

@@ -59,17 +59,20 @@ namespace base_local_planner {
   double SimpleScoredSamplingPlanner::scoreTrajectory(Trajectory& traj, double best_traj_cost) {
     double traj_cost = 0;
     int gen_id = 0;
-    // std::cout << "critics_ size: " << critics_.size() << std::endl;
+    // std::cout << "scoreTrajectory,  traj.xv_: " << traj.xv_ << ",traj.thetav_: " << traj.thetav_ << std::endl;
     // 遍历所有的代价函数  
     for(std::vector<TrajectoryCostFunction*>::iterator score_function = critics_.begin(); score_function != critics_.end(); ++score_function) {
       TrajectoryCostFunction* score_function_p = *score_function;
       if (score_function_p->getScale() == 0) {
+        // std::cout << "score_function_p->getScale() == 0 !!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
         continue;
       }
+      // std::cout << "score_function_p->scoreTrajectory" << std::endl;
       double cost = score_function_p->scoreTrajectory(traj);
       // std::cout << "cost: " << cost << std::endl;
       if (cost < 0) {
         ROS_DEBUG("Velocity %.3lf, %.3lf, %.3lf discarded by cost function  %d with cost: %f", traj.xv_, traj.yv_, traj.thetav_, gen_id, cost);
+        // std::cout << "cost < 0 !!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
         traj_cost = cost;
         break;
       }
@@ -81,6 +84,7 @@ namespace base_local_planner {
       if (best_traj_cost > 0) {
         // since we keep adding positives, once we are worse than the best, we will stay worse
         if (traj_cost > best_traj_cost) {
+          // std::cout << "traj_cost > best_traj_cost !!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
           break;
         }
       }
@@ -116,6 +120,7 @@ namespace base_local_planner {
         gen_success = gen_->nextTrajectory(loop_traj);
         if (gen_success == false) {
           // TODO use this for debugging
+          std::cout << "gen_success == false !!!!!!!!!!!!!!!!!!!!!!!!!!!" << "\n";
           continue;
         }
         // 对该轨迹进行打分  

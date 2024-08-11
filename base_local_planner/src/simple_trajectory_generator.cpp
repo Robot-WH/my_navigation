@@ -173,17 +173,18 @@ void SimpleTrajectoryGenerator::setParameters(
     double angular_sim_granularity,
     bool use_dwa,
     double sim_period) {
-  std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!SimpleTrajectoryGenerator::setParameters" << std::endl;
+  std::cout << "设置轨迹生成器参数：" << std::endl;
   sim_time_ = sim_time;
   sim_granularity_ = sim_granularity;    // 细分粒度
   angular_sim_granularity_ = angular_sim_granularity;
   use_dwa_ = use_dwa;
   continued_acceleration_ = ! use_dwa_;
-  sim_period_ = sim_period;
+  sim_period_ = sim_period;   // 控制周期
   std::cout << "sim_time_: " << sim_time_ << std::endl;
+  std::cout << "sim_granularity_: " << sim_granularity_ << std::endl;
+  std::cout << "angular_sim_granularity_: " << angular_sim_granularity_ << std::endl;
   std::cout << "use_dwa_: " << use_dwa_ << std::endl;
   std::cout << "sim_period_: " << sim_period_ << std::endl;
-  std::cout << "sim_granularity_: " << sim_granularity_ << std::endl;
 }
 
 /**
@@ -199,11 +200,12 @@ bool SimpleTrajectoryGenerator::hasMoreTrajectories() {
 bool SimpleTrajectoryGenerator::nextTrajectory(Trajectory &comp_traj) {
   bool result = false;
   if (hasMoreTrajectories()) {
+    // pos_，vel_在initialise中设置 
     if (generateTrajectory(
-        pos_,
-        vel_,
-        sample_params_[next_sample_index_],
-        comp_traj)) {
+            pos_,   
+            vel_,
+            sample_params_[next_sample_index_],   // 轨迹参数，initialise中构建
+            comp_traj)) {
       result = true;
     }
   }
@@ -212,8 +214,14 @@ bool SimpleTrajectoryGenerator::nextTrajectory(Trajectory &comp_traj) {
 }
 
 /**
- * @param pos current position of robot
- * @param vel desired velocity for sampling
+ * @brief 
+ * 
+ * @param pos pos current position of robot
+ * @param vel 机器人当前速度
+ * @param sample_target_vel 未来设定轨迹的运动参数
+ * @param[out] traj 
+ * @return true 
+ * @return false 
  */
 bool SimpleTrajectoryGenerator::generateTrajectory(
       Eigen::Vector3f pos,
@@ -226,19 +234,23 @@ bool SimpleTrajectoryGenerator::generateTrajectory(
   traj.cost_   = -1.0; // placed here in case we return early
   //trajectory might be reused so we'll make sure to reset it
   traj.resetPoints();
-
-  // make sure that the robot would at least be moving with one of
-  // the required minimum velocities for translation and rotation (if set)
+  // std::cout << "traj param: " << sample_target_vel.transpose() << "\n";
+  // 确保设定的轨迹的运动速度大于最小运动速度
   if ((limits_->min_vel_trans >= 0 && vmag + eps < limits_->min_vel_trans) &&
       (limits_->min_vel_theta >= 0 && fabs(sample_target_vel[2]) + eps < limits_->min_vel_theta)) {
+    // std::cout << "速度太低！！！！" << "\n";
     return false;
   }
-  // make sure we do not exceed max diagonal (x+y) translational velocity (if set)
+  // 确保设定的轨迹的运动速度小于最大运动速度
   if (limits_->max_vel_trans >=0 && vmag - eps > limits_->max_vel_trans) {
+    // std::cout << "速度超标！！！！vx: " << sample_target_vel[0] << "\n";
     return false;
   }
 
   int num_steps;
+  //// discretize_by_time_为true，则按时间进行离散化，sim_granularity_为最小间隔时间
+  // discretize_by_time_为false, 则按距离进行离散化，sim_granularity_为最小间隔距离
+  // 默认discretize_by_time_为false
   if (discretize_by_time_) {
     num_steps = ceil(sim_time_ / sim_granularity_);
   } else {
@@ -247,10 +259,11 @@ bool SimpleTrajectoryGenerator::generateTrajectory(
     double sim_time_angle = fabs(sample_target_vel[2]) * sim_time_; // the angle the robot would rotate in sim_time
     num_steps =
         ceil(std::max(sim_time_distance / sim_granularity_,
-            sim_time_angle    / angular_sim_granularity_));
+            sim_time_angle  / angular_sim_granularity_));
   }
 
   if (num_steps == 0) {
+    // std::cout << "num_steps == 0    return false !!!!!!!!!!!!!!!!!" << "\n";
     return false;
   }
 
@@ -259,26 +272,29 @@ bool SimpleTrajectoryGenerator::generateTrajectory(
   traj.time_delta_ = dt;
 
   Eigen::Vector3f loop_vel;
+  // use_dwa_默认为true，则continued_acceleration_默认为false
   if (continued_acceleration_) {
     // 传入当前速度是为了考虑最大加速度的限制对速度进行选择
     loop_vel = computeNewVelocities(sample_target_vel, vel, limits_->getAccLimits(), dt);
     traj.xv_     = loop_vel[0];
     traj.yv_     = loop_vel[1];
     traj.thetav_ = loop_vel[2];
+    // std::cout << "continued_acceleration_ true" << "\n"; 
   } else {
     // assuming sample_vel is our target velocity within acc limits for one timestep
     loop_vel = sample_target_vel;
     traj.xv_     = sample_target_vel[0];
     traj.yv_     = sample_target_vel[1];
     traj.thetav_ = sample_target_vel[2];
+    // std::cout << "------------------------------------------continued_acceleration_ false" << "\n"; 
   }
 
-  //simulate the trajectory and check for collisions, updating costs along the way
+  // 根据分辨率计算轨迹离散化后的每个点
   for (int i = 0; i < num_steps; ++i) {
 
     //add the point to the trajectory so we can draw it later if we want
     traj.addPoint(pos[0], pos[1], pos[2]);
-
+    // continued_acceleration_默认为false
     if (continued_acceleration_) {
       //calculate velocities
       loop_vel = computeNewVelocities(sample_target_vel, loop_vel, limits_->getAccLimits(), dt);
