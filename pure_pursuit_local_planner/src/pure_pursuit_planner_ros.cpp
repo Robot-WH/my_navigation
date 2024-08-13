@@ -7,6 +7,8 @@
 #include <nav_msgs/Path.h>
 #include <tf2/utils.h>
 #include <nav_core/parameter_magic.h>
+#include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
 
 //register this planner as a BaseLocalPlanner plugin
 PLUGINLIB_EXPORT_CLASS(pure_pursuit_local_planner::PurePursuitPlannerROS, nav_core::BaseLocalPlanner)
@@ -51,7 +53,7 @@ namespace pure_pursuit_local_planner {
 
   PurePursuitPlannerROS::PurePursuitPlannerROS() : initialized_(false),
       odom_helper_("odom"), setup_(false) {
-
+    
   }
 
   void PurePursuitPlannerROS::initialize(
@@ -63,6 +65,7 @@ namespace pure_pursuit_local_planner {
       ros::NodeHandle private_nh("~/" + name);
       g_plan_pub_ = private_nh.advertise<nav_msgs::Path>("global_plan", 1);
       l_plan_pub_ = private_nh.advertise<nav_msgs::Path>("local_plan", 1);
+      frontViewPoint_pub_ = private_nh.advertise<visualization_msgs::MarkerArray>("/front_target", 1);  
       tf_ = tf;
       costmap_ros_ = costmap_ros;
       costmap_ros_->getRobotPose(current_pose_);
@@ -133,6 +136,35 @@ namespace pure_pursuit_local_planner {
     dp_->UpdateFrontTargetPoint(current_pose_.pose.position.x, current_pose_.pose.position.y);  
     // 计算DWA规划器的速度命令
     bool isOk = dp_->CalculateMotion(cmd_vel);
+    // 可视化前视点
+    const auto& point = dp_->GetFrontViewPoint(); 
+    visualization_msgs::MarkerArray markers;
+    markers.markers.resize(1);
+    ros::Time stamp = ros::Time::now();  
+    // node markers    位姿节点
+    visualization_msgs::Marker& traj_marker = markers.markers[0];
+    traj_marker.header.frame_id = "odom";
+    traj_marker.header.stamp = stamp;
+    traj_marker.ns = "nodes";
+    traj_marker.id = 0;
+    traj_marker.type = visualization_msgs::Marker::SPHERE_LIST;
+    traj_marker.pose.orientation.w = 1.0;
+    traj_marker.scale.x = traj_marker.scale.y = traj_marker.scale.z = 0.1;
+    // 数量
+    traj_marker.points.resize(1);
+    // 颜色
+    traj_marker.colors.resize(1);
+    // 设置位置
+    traj_marker.points[0].x = point.pose.position.x;
+    traj_marker.points[0].y = point.pose.position.y;
+    traj_marker.points[0].z = 0;
+    // 颜色
+    traj_marker.colors[0].r = 1.0;
+    traj_marker.colors[0].g = 0;
+    traj_marker.colors[0].b = 0.0;
+    traj_marker.colors[0].a = 1.0;
+
+    frontViewPoint_pub_.publish(markers);
     return true; 
   }
 };

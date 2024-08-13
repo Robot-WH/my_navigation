@@ -116,6 +116,7 @@ namespace pure_pursuit_local_planner {
 
       // for visualisation, publishers of global and local plan
       ros::Publisher g_plan_pub_, l_plan_pub_;
+      ros::Publisher frontViewPoint_pub_; // 前视点可视化
 
       base_local_planner::LocalPlannerUtil planner_util_;
 

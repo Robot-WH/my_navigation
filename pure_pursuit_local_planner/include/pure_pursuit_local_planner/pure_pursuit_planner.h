@@ -72,6 +72,8 @@ namespace pure_pursuit_local_planner {
       bool CalculateMotion(geometry_msgs::Twist& cmd_vel);
 
       bool IsGoalReached();  
+
+      const geometry_msgs::PoseStamped& GetFrontViewPoint();
     private:
       enum class State {begin_align, mid_run, end_align, finish} state_;
       base_local_planner::LocalPlannerUtil *planner_util_;
@@ -84,7 +86,9 @@ namespace pure_pursuit_local_planner {
       boost::mutex configuration_mutex_;
       std::string frame_id_;
       int front_target_point_index_ = -1;     // 前向点在全局路径下的index
-      float front_view_distance_ = 0.2;     // 前视距离
+      float front_view_distance_ = 0.5;     // 默认前视距离
+      float max_front_view_distance_ = 1;
+      float min_front_view_distance_threshold_ = 0.05;
       std::vector<geometry_msgs::PoseStamped> global_plan_;
       geometry_msgs::PoseStamped front_target_point_in_base_; 
 

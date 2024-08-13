@@ -56,6 +56,11 @@ bool PurePursuitPlanner::setPlan(const std::vector<geometry_msgs::PoseStamped>& 
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+const geometry_msgs::PoseStamped& PurePursuitPlanner::GetFrontViewPoint() {
+  return global_plan_[front_target_point_index_];
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void PurePursuitPlanner::UpdateFrontTargetPoint(const float& curr_pos_x, const float& curr_pos_y) {
   std::cout << "UpdateFrontTargetPoint" << "\n"; 
   bool update = true;  
@@ -78,18 +83,39 @@ void PurePursuitPlanner::UpdateFrontTargetPoint(const float& curr_pos_x, const f
     std::cout << " 更新前视点, global_plan_.size(): " <<  num << "  ,front_target_point_index_: " << front_target_point_index_ << "\n"; 
     // 向后寻找新的前视点  
     if (front_target_point_index_  < num) {
-      ++front_target_point_index_;
-      std::cout << "++front_target_point_index_: " << front_target_point_index_ << "\n"; 
+      // while(front_view_distance_ >= min_front_view_distance_threshold_) {
+        ++front_target_point_index_;
+        std::cout << "++front_target_point_index_: " << front_target_point_index_ << "\n"; 
         for (; front_target_point_index_ < global_plan_.size() - 1; ++front_target_point_index_) {
-        float diff_x = global_plan_[front_target_point_index_].pose.position.x - curr_pos_x;
-        float diff_y = global_plan_[front_target_point_index_].pose.position.y - curr_pos_y;
-        float distance = std::sqrt(diff_x * diff_x + diff_y * diff_y);
-        if (distance > front_view_distance_) {
-          std::cout << "找到新的前视点，front_target_point_index_： " << front_target_point_index_
-            << ", distance: " << distance << "\n";  
-          break;
+          float diff_x = global_plan_[front_target_point_index_].pose.position.x - curr_pos_x;
+          float diff_y = global_plan_[front_target_point_index_].pose.position.y - curr_pos_y;
+          float distance = std::sqrt(diff_x * diff_x + diff_y * diff_y);
+          if (distance > front_view_distance_) {
+            std::cout << "找到新的前视点，front_target_point_index_： " << front_target_point_index_
+              << ", distance: " << distance << "\n";  
+            break;
+          }
         }
-      }
+      //   // 根据轨迹的曲率 判断这个前视点是否需要调整
+      //   int half_front_target_point_index = front_target_point_index_ / 2; 
+      //   double direct1 = std::atan2(global_plan_[front_target_point_index_].pose.position.y - curr_pos_y, 
+      //                                                         global_plan_[front_target_point_index_].pose.position.x - curr_pos_x);  // [-pi, pi]
+      //   double direct2 = std::atan2(global_plan_[half_front_target_point_index].pose.position.y - curr_pos_y, 
+      //                                                         global_plan_[half_front_target_point_index].pose.position.x - curr_pos_x);  // [-pi, pi]
+      //   double diff = std::fabs(direct1 - direct2);
+      //   if (diff > M_PI) {
+      //     diff = 2 * M_PI - diff;   
+      //   }           
+      //   // 如果大于30度   前视距离减半
+      //   if (diff > 0.5236) {
+      //     front_view_distance_ /= 2;
+      //   } else if (diff < 0.1) {
+      //     front_view_distance_ *= 2;
+      //     break;
+      //   } else {
+      //     break;
+      //   }                    
+      // }
     }
   }
   std::cout << "front_target_point_index_: " << front_target_point_index_ << "\n"; 
@@ -187,6 +213,7 @@ bool PurePursuitPlanner::CalculateMotion(geometry_msgs::Twist& cmd_vel) {
       float r = l_2 / (2 * front_target_point_in_base_.pose.position.y);  
       rotation_v = linear_v / r;    
       std::cout << "rotation_v: " << rotation_v << "\n";
+      // 旋转角速度过大就降低线速度
       while (rotation_v > 0.7 || rotation_v < -0.7) {
         linear_v *= 0.8;  
         rotation_v = linear_v / r;    
