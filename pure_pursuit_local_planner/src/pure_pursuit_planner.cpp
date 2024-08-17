@@ -50,7 +50,7 @@ PurePursuitPlanner::PurePursuitPlanner(std::string name, tf2_ros::Buffer* tf, ba
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 bool PurePursuitPlanner::setPlan(const std::vector<geometry_msgs::PoseStamped>& orig_global_plan) {
   global_plan_ = orig_global_plan;
-  front_target_point_index_ = -1;  
+  front_target_point_index_ = 0;  
   state_ = State::begin_align;
   return true;   
 }
@@ -63,58 +63,106 @@ const geometry_msgs::PoseStamped& PurePursuitPlanner::GetFrontViewPoint() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void PurePursuitPlanner::UpdateFrontTargetPoint(const float& curr_pos_x, const float& curr_pos_y) {
   std::cout << "UpdateFrontTargetPoint" << "\n"; 
-  bool update = true;  
+  bool update = false;  
   // 先判断是否需要更新前视点
   if (front_target_point_index_ >= 0) {
     std::cout << "front_target_point_index_: " << front_target_point_index_ << "\n"; 
-    std::cout << "global_plan_.size(): " <<  global_plan_.size() << "\n"; 
+    // std::cout << "global_plan_.size(): " <<  global_plan_.size() << "\n"; 
     // 如果当前位置距离前视点的距离小于前视距离的一半  则需要更新前视点
     float diff_x = global_plan_[front_target_point_index_].pose.position.x - curr_pos_x;
     float diff_y = global_plan_[front_target_point_index_].pose.position.y - curr_pos_y;
     float distance = std::sqrt(diff_x * diff_x + diff_y * diff_y);
-    std::cout << "distance: " << distance << "\n"; 
-    if (distance > 0.5 * front_view_distance_) {
-      std::cout << " 不需要更新前视点"  << "\n"; 
-      update = false;  
+    std::cout << "distance: " << distance << ",front_view_distance_: " << front_view_distance_ << "\n"; 
+    if (distance < 0.5 * front_view_distance_) {
+      std::cout << " 更新前视点"  << "\n"; 
+      update = true;  
     }
   }
+
   if (update) {
     int num = global_plan_.size() - 1;
     std::cout << " 更新前视点, global_plan_.size(): " <<  num << "  ,front_target_point_index_: " << front_target_point_index_ << "\n"; 
     // 向后寻找新的前视点  
     if (front_target_point_index_  < num) {
-      // while(front_view_distance_ >= min_front_view_distance_threshold_) {
-        ++front_target_point_index_;
-        std::cout << "++front_target_point_index_: " << front_target_point_index_ << "\n"; 
-        for (; front_target_point_index_ < global_plan_.size() - 1; ++front_target_point_index_) {
-          float diff_x = global_plan_[front_target_point_index_].pose.position.x - curr_pos_x;
-          float diff_y = global_plan_[front_target_point_index_].pose.position.y - curr_pos_y;
-          float distance = std::sqrt(diff_x * diff_x + diff_y * diff_y);
-          if (distance > front_view_distance_) {
-            std::cout << "找到新的前视点，front_target_point_index_： " << front_target_point_index_
-              << ", distance: " << distance << "\n";  
-            break;
-          }
+      int last_front_target_point_index = front_target_point_index_; 
+      float distance = 0;
+      float half_front_view_distance_ = 0.5 * front_view_distance_;
+      std::cout << "++front_target_point_index_: " << front_target_point_index_ << "\n"; 
+      for (; front_target_point_index_ < global_plan_.size() - 1; ++front_target_point_index_) {
+        float diff_x = global_plan_[front_target_point_index_ + 1].pose.position.x 
+                                    - global_plan_[front_target_point_index_].pose.position.x;
+        float diff_y = global_plan_[front_target_point_index_ + 1].pose.position.y 
+                                    - global_plan_[front_target_point_index_].pose.position.y ;
+        distance += std::sqrt(diff_x * diff_x + diff_y * diff_y);
+        if (distance >= half_front_view_distance_) {
+          std::cout << "找到新的前视点，front_target_point_index_： " << front_target_point_index_
+            << ", distance: " << distance << "\n";  
+          break;
         }
-      //   // 根据轨迹的曲率 判断这个前视点是否需要调整
-      //   int half_front_target_point_index = front_target_point_index_ / 2; 
-      //   double direct1 = std::atan2(global_plan_[front_target_point_index_].pose.position.y - curr_pos_y, 
-      //                                                         global_plan_[front_target_point_index_].pose.position.x - curr_pos_x);  // [-pi, pi]
-      //   double direct2 = std::atan2(global_plan_[half_front_target_point_index].pose.position.y - curr_pos_y, 
-      //                                                         global_plan_[half_front_target_point_index].pose.position.x - curr_pos_x);  // [-pi, pi]
-      //   double diff = std::fabs(direct1 - direct2);
-      //   if (diff > M_PI) {
-      //     diff = 2 * M_PI - diff;   
-      //   }           
-      //   // 如果大于30度   前视距离减半
-      //   if (diff > 0.5236) {
-      //     front_view_distance_ /= 2;
-      //   } else if (diff < 0.1) {
-      //     front_view_distance_ *= 2;
-      //     break;
-      //   } else {
-      //     break;
-      //   }                    
+      }
+      // 评估轨迹曲率  
+      double direct1 = std::atan2(global_plan_[front_target_point_index_].pose.position.y - curr_pos_y, 
+                                                              global_plan_[front_target_point_index_].pose.position.x - curr_pos_x);  // [-pi, pi]
+      double direct2 = std::atan2(global_plan_[last_front_target_point_index].pose.position.y - curr_pos_y, 
+                                                            global_plan_[last_front_target_point_index].pose.position.x - curr_pos_x);  // [-pi, pi]
+      double diff = std::fabs(direct1 - direct2);
+      if (diff > M_PI) {
+        diff = 2 * M_PI - diff;   
+      }           
+      std::cout << "front_target_point_index_: " << front_target_point_index_
+        << "last_front_target_point_index: " << last_front_target_point_index 
+        << "diff: " << diff << "\n"; 
+      // 如果大于30度   则需要减半前视距离
+      // if (diff > 0.5236) {
+      //   std::cout << "曲线曲率过大，减少前视距离" << "\n";
+      //   // 获取与当前机器人距离最近的轨迹点Index
+      //   float last_dis = 9999;
+      //   int curr_ind = last_front_target_point_index;
+      //   int nearly_robot_ind = 0; 
+      //   while(curr_ind >= 0) {
+      //     float diff_x = global_plan_[curr_ind].pose.position.x  - curr_pos_x;
+      //     float diff_y = global_plan_[curr_ind].pose.position.y  - curr_pos_y ;
+      //     float curr_dis = diff_x * diff_x + diff_y * diff_y;
+      //     if (curr_dis > last_dis) {
+      //       nearly_robot_ind = curr_ind + 1;
+      //       break;
+      //     }
+      //     --curr_ind;
+      //     last_dis = curr_dis;
+      //   }
+      //   front_target_point_index_ = last_front_target_point_index;
+      //   //  循环找到最佳前视距离
+      //   while(1) {
+      //     // 根据轨迹的曲率 判断这个前视点是否需要调整
+      //     int half_front_target_point_index = (nearly_robot_ind + front_target_point_index_) / 2; 
+      //     double direct1 = std::atan2(global_plan_[front_target_point_index_].pose.position.y - curr_pos_y, 
+      //                                                           global_plan_[front_target_point_index_].pose.position.x - curr_pos_x);  // [-pi, pi]
+      //     double direct2 = std::atan2(global_plan_[half_front_target_point_index].pose.position.y - curr_pos_y, 
+      //                                                           global_plan_[half_front_target_point_index].pose.position.x - curr_pos_x);  // [-pi, pi]
+      //     double diff = std::fabs(direct1 - direct2);
+      //     if (diff > M_PI) {
+      //       diff = 2 * M_PI - diff;   
+      //     }           
+      //     std::cout << "diff: " << diff << "\n"; 
+      //     // 如果大于30度   前视距离减半
+      //     if (diff > 0.5236) {
+      //       front_view_distance_ /= 2;
+      //       front_target_point_index_ = half_front_target_point_index;
+      //       if (front_view_distance_ < min_front_view_distance_threshold_) {
+      //         front_view_distance_ = min_front_view_distance_threshold_;
+      //         break;
+      //       }
+      //     } else {
+      //       break;
+      //     }                    
+      //   }
+      // } 
+      // else if (diff < 0.1) {
+      //   front_view_distance_ *= 2;
+      //   if (front_view_distance_ > max_front_view_distance_) {
+      //     front_view_distance_ = max_front_view_distance_;
+      //   }
+      //   std::cout << "路径直，增大前视距离： " << front_view_distance_ << "\n";
       // }
     }
   }
@@ -226,7 +274,7 @@ bool PurePursuitPlanner::CalculateMotion(geometry_msgs::Twist& cmd_vel) {
       state_ = State::end_align;
     }
   } else if (state_ == State::end_align) {
-    // std::cout << "state_ == State::end_align" << "\n"; 
+    std::cout << "state_ == State::end_align" << "\n"; 
     // 将ROS的Quaternion转换为tf2的Quaternion  
     tf2::Quaternion q(front_target_point_in_base_.pose.orientation.x, front_target_point_in_base_.pose.orientation.y,  
                       front_target_point_in_base_.pose.orientation.z, front_target_point_in_base_.pose.orientation.w);  
@@ -248,6 +296,10 @@ bool PurePursuitPlanner::CalculateMotion(geometry_msgs::Twist& cmd_vel) {
         state_ = State::finish;    // 本次导航结束
       } else {
         state_ = State::begin_align;
+        // if (front_target_point_index_ == 0) {
+        //   front_target_point_index_ = 1;
+        // }
+        // std::cout << "导航结束，到达目标点!" << "\n";  
       }
     } else {
       rotation_v = 3 * yaw;        // P控制  
