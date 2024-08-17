@@ -129,16 +129,16 @@ void PurePursuitPlanner::UpdateFrontTargetPoint(const float& curr_pos_x, const f
       // 获取当前机器人的朝向角，
       tf2::Quaternion tf_q(curr_pos_rot.x, curr_pos_rot.y, curr_pos_rot.z, curr_pos_rot.w);  
       tf2::Matrix3x3 m(tf_q);  
-      double roll, pitch, yaw;  
-      m.getRPY(roll, pitch, yaw);  
+      double roll, pitch, robot_yaw;  
+      m.getRPY(roll, pitch, robot_yaw);  
       std::cout << "评估轨迹!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << "\n";
-      std::cout << "robot yaw: " << yaw << "\n";
+      std::cout << "robot robot_yaw: " << robot_yaw << "\n";
       // 上次前视点与更新后的前视点的连线夹角  
       double direct = std::atan2(global_plan_[front_target_point_index_].pose.position.y 
                                                                 - global_plan_[last_front_target_point_index].pose.position.y, 
                                                               global_plan_[front_target_point_index_].pose.position.x 
                                                                 - global_plan_[last_front_target_point_index].pose.position.x); 
-      double diff = std::fabs(direct - yaw);
+      double diff = std::fabs(direct - robot_yaw);
       if (diff > M_PI) {
         diff = 2 * M_PI - diff;   
       }         
@@ -164,37 +164,30 @@ void PurePursuitPlanner::UpdateFrontTargetPoint(const float& curr_pos_x, const f
           --curr_ind;
           last_dis = curr_dis;
         }
-        front_target_point_index_ = (last_front_target_point_index + front_target_point_index_) / 2;
-        front_view_distance_ /= 2;
         //  循环找到最佳前视距离
         while(1) {
           std::cout << "nearly_robot_ind: " << nearly_robot_ind << "\n";
+          front_target_point_index_ = (last_front_target_point_index + front_target_point_index_) / 2;
+          front_view_distance_ /= 2;
+          std::cout << "前视距离减半, front_view_distance_: " << front_view_distance_ 
+              << ",front_target_point_index_:" << front_target_point_index_ << "\n";
+          if (front_view_distance_ < min_front_view_distance_) {
+            front_view_distance_ = min_front_view_distance_;
+            break;
+          }
           // 根据轨迹的曲率 判断这个前视点是否需要调整
           int half_front_target_point_index = (nearly_robot_ind + front_target_point_index_) / 2; 
-          double direct1 = std::atan2(global_plan_[front_target_point_index_].pose.position.y 
-                                                                    - global_plan_[nearly_robot_ind].pose.position.y, 
+          double direct = std::atan2(global_plan_[front_target_point_index_].pose.position.y 
+                                                                    - global_plan_[half_front_target_point_index].pose.position.y, 
                                                                 global_plan_[front_target_point_index_].pose.position.x 
-                                                                    - global_plan_[nearly_robot_ind].pose.position.x);  // [-pi, pi]
-          double direct2 = std::atan2(global_plan_[half_front_target_point_index].pose.position.y 
-                                                                    - global_plan_[nearly_robot_ind].pose.position.y, 
-                                                                global_plan_[half_front_target_point_index].pose.position.x 
-                                                                    - global_plan_[nearly_robot_ind].pose.position.x);  // [-pi, pi]
-          double diff = std::fabs(direct1 - direct2);
+                                                                    - global_plan_[half_front_target_point_index].pose.position.x);  // [-pi, pi]
+          double diff = std::fabs(direct - robot_yaw);
           if (diff > M_PI) {
             diff = 2 * M_PI - diff;   
           }           
           std::cout << "diff: " << diff << "\n"; 
           // 如果大于30度   前视距离减半
-          if (diff > 0.5236) {
-            front_view_distance_ /= 2;
-            front_target_point_index_ = (last_front_target_point_index + front_target_point_index_) / 2;;
-            std::cout << "前视距离减半, front_view_distance_: " << front_view_distance_ 
-              << ",front_target_point_index_:" << front_target_point_index_ << "\n";
-            if (front_view_distance_ < min_front_view_distance_) {
-              front_view_distance_ = min_front_view_distance_;
-              break;
-            }
-          } else {
+          if (diff < 0.5236) {
             break;
           }                    
         }
