@@ -8,6 +8,7 @@
 #include <tf2/utils.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/point_cloud2_iterator.h>
+#include "pure_pursuit_local_planner/color.hpp"
 namespace pure_pursuit_local_planner {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void PurePursuitPlanner::reconfigure(PurePursuitPlannerConfig &config)
@@ -44,13 +45,15 @@ PurePursuitPlanner::PurePursuitPlanner(std::string name, tf2_ros::Buffer* tf, ba
   private_nh.param("global_frame_id", frame_id_, std::string("odom"));
 
   state_ = State::begin_align;    
+  front_view_distance_ = min_front_view_distance_;  
 }
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 bool PurePursuitPlanner::setPlan(const std::vector<geometry_msgs::PoseStamped>& orig_global_plan) {
   global_plan_ = orig_global_plan;
-  front_target_point_index_ = 0;  
+  front_target_point_index_ = 0;
+  front_view_distance_ = min_front_view_distance_;  
   state_ = State::begin_align;
   return true;   
 }
@@ -61,7 +64,8 @@ const geometry_msgs::PoseStamped& PurePursuitPlanner::GetFrontViewPoint() {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void PurePursuitPlanner::UpdateFrontTargetPoint(const float& curr_pos_x, const float& curr_pos_y) {
+void PurePursuitPlanner::UpdateFrontTargetPoint(const float& curr_pos_x, const float& curr_pos_y,
+                                                                                                          const geometry_msgs::Quaternion& curr_pos_rot) {
   std::cout << "UpdateFrontTargetPoint" << "\n"; 
   bool update = false;  
   // 先判断是否需要更新前视点
@@ -80,93 +84,131 @@ void PurePursuitPlanner::UpdateFrontTargetPoint(const float& curr_pos_x, const f
   }
 
   if (update) {
-    int num = global_plan_.size() - 1;
-    std::cout << " 更新前视点, global_plan_.size(): " <<  num << "  ,front_target_point_index_: " << front_target_point_index_ << "\n"; 
+    int global_path_tail_idx = global_plan_.size() - 1;
+    std::cout << " 更新前视点, global_plan_.size(): " <<  global_plan_.size() << "  ,front_target_point_index_: " << front_target_point_index_ << "\n"; 
     // 向后寻找新的前视点  
-    if (front_target_point_index_  < num) {
+    if (front_target_point_index_  < global_path_tail_idx) {
       int last_front_target_point_index = front_target_point_index_; 
-      float distance = 0;
-      float half_front_view_distance_ = 0.5 * front_view_distance_;
       std::cout << "++front_target_point_index_: " << front_target_point_index_ << "\n"; 
-      for (; front_target_point_index_ < global_plan_.size() - 1; ++front_target_point_index_) {
-        float diff_x = global_plan_[front_target_point_index_ + 1].pose.position.x 
-                                    - global_plan_[front_target_point_index_].pose.position.x;
-        float diff_y = global_plan_[front_target_point_index_ + 1].pose.position.y 
-                                    - global_plan_[front_target_point_index_].pose.position.y ;
-        distance += std::sqrt(diff_x * diff_x + diff_y * diff_y);
-        if (distance >= half_front_view_distance_) {
+      for (; front_target_point_index_ <= global_path_tail_idx; ++front_target_point_index_) {
+        float diff_x = global_plan_[front_target_point_index_].pose.position.x - curr_pos_x;
+        float diff_y = global_plan_[front_target_point_index_].pose.position.y - curr_pos_y;
+        float distance = std::sqrt(diff_x * diff_x + diff_y * diff_y);
+        if (distance >= front_view_distance_ || front_target_point_index_ == global_path_tail_idx) {
           std::cout << "找到新的前视点，front_target_point_index_： " << front_target_point_index_
             << ", distance: " << distance << "\n";  
           break;
         }
       }
+      // 处理轨迹起始时的特殊情况
+      if (last_front_target_point_index == 0) {
+        last_front_target_point_index = front_target_point_index_;
+        front_target_point_index_ *= 2;  
+      }
       // 评估轨迹曲率  
-      double direct1 = std::atan2(global_plan_[front_target_point_index_].pose.position.y - curr_pos_y, 
-                                                              global_plan_[front_target_point_index_].pose.position.x - curr_pos_x);  // [-pi, pi]
-      double direct2 = std::atan2(global_plan_[last_front_target_point_index].pose.position.y - curr_pos_y, 
-                                                            global_plan_[last_front_target_point_index].pose.position.x - curr_pos_x);  // [-pi, pi]
-      double diff = std::fabs(direct1 - direct2);
+      // double direct1 = std::atan2(global_plan_[front_target_point_index_].pose.position.y - curr_pos_y, 
+      //                                                         global_plan_[front_target_point_index_].pose.position.x - curr_pos_x);  // [-pi, pi]
+      // double direct2 = std::atan2(global_plan_[last_front_target_point_index].pose.position.y - curr_pos_y, 
+      //                                                       global_plan_[last_front_target_point_index].pose.position.x - curr_pos_x);  // [-pi, pi]
+      // double diff = std::fabs(direct1 - direct2);
+      // if (diff > M_PI) {
+      //   diff = 2 * M_PI - diff;   
+      // }         
+
+      // std::cout << "front_target_point_index_: " << front_target_point_index_ << "\n"
+      //   << "last_front_target_point_index: " << last_front_target_point_index << "\n"
+      //   << "global_plan_[front_target_point_index_].y: " << global_plan_[front_target_point_index_].pose.position.y << "\n"
+      //   << "curr_pos_y: " << curr_pos_y << "\n"
+      //   << "global_plan_[front_target_point_index_].x:" << global_plan_[front_target_point_index_].pose.position.x << "\n"
+      //   << "curr_pos_x: " << curr_pos_x << "\n"
+      //   << "global_plan_[last_front_target_point_index].y: " << global_plan_[last_front_target_point_index].pose.position.y << "\n"
+      //   << "global_plan_[last_front_target_point_index].x: " << global_plan_[last_front_target_point_index].pose.position.x << "\n"
+      //   << "direct1: " << direct1 << "\n"
+      //   << "direct2: " << direct2 << "\n"
+      //   << "diff: " << diff << "\n"; 
+      // 获取当前机器人的朝向角，
+      tf2::Quaternion tf_q(curr_pos_rot.x, curr_pos_rot.y, curr_pos_rot.z, curr_pos_rot.w);  
+      tf2::Matrix3x3 m(tf_q);  
+      double roll, pitch, yaw;  
+      m.getRPY(roll, pitch, yaw);  
+      std::cout << "评估轨迹!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << "\n";
+      std::cout << "robot yaw: " << yaw << "\n";
+      // 上次前视点与更新后的前视点的连线夹角  
+      double direct = std::atan2(global_plan_[front_target_point_index_].pose.position.y 
+                                                                - global_plan_[last_front_target_point_index].pose.position.y, 
+                                                              global_plan_[front_target_point_index_].pose.position.x 
+                                                                - global_plan_[last_front_target_point_index].pose.position.x); 
+      double diff = std::fabs(direct - yaw);
       if (diff > M_PI) {
         diff = 2 * M_PI - diff;   
-      }           
-      std::cout << "front_target_point_index_: " << front_target_point_index_
-        << "last_front_target_point_index: " << last_front_target_point_index 
+      }         
+      std::cout << "direct: " << direct << "\n"
         << "diff: " << diff << "\n"; 
+
       // 如果大于30度   则需要减半前视距离
-      // if (diff > 0.5236) {
-      //   std::cout << "曲线曲率过大，减少前视距离" << "\n";
-      //   // 获取与当前机器人距离最近的轨迹点Index
-      //   float last_dis = 9999;
-      //   int curr_ind = last_front_target_point_index;
-      //   int nearly_robot_ind = 0; 
-      //   while(curr_ind >= 0) {
-      //     float diff_x = global_plan_[curr_ind].pose.position.x  - curr_pos_x;
-      //     float diff_y = global_plan_[curr_ind].pose.position.y  - curr_pos_y ;
-      //     float curr_dis = diff_x * diff_x + diff_y * diff_y;
-      //     if (curr_dis > last_dis) {
-      //       nearly_robot_ind = curr_ind + 1;
-      //       break;
-      //     }
-      //     --curr_ind;
-      //     last_dis = curr_dis;
-      //   }
-      //   front_target_point_index_ = last_front_target_point_index;
-      //   //  循环找到最佳前视距离
-      //   while(1) {
-      //     // 根据轨迹的曲率 判断这个前视点是否需要调整
-      //     int half_front_target_point_index = (nearly_robot_ind + front_target_point_index_) / 2; 
-      //     double direct1 = std::atan2(global_plan_[front_target_point_index_].pose.position.y - curr_pos_y, 
-      //                                                           global_plan_[front_target_point_index_].pose.position.x - curr_pos_x);  // [-pi, pi]
-      //     double direct2 = std::atan2(global_plan_[half_front_target_point_index].pose.position.y - curr_pos_y, 
-      //                                                           global_plan_[half_front_target_point_index].pose.position.x - curr_pos_x);  // [-pi, pi]
-      //     double diff = std::fabs(direct1 - direct2);
-      //     if (diff > M_PI) {
-      //       diff = 2 * M_PI - diff;   
-      //     }           
-      //     std::cout << "diff: " << diff << "\n"; 
-      //     // 如果大于30度   前视距离减半
-      //     if (diff > 0.5236) {
-      //       front_view_distance_ /= 2;
-      //       front_target_point_index_ = half_front_target_point_index;
-      //       if (front_view_distance_ < min_front_view_distance_threshold_) {
-      //         front_view_distance_ = min_front_view_distance_threshold_;
-      //         break;
-      //       }
-      //     } else {
-      //       break;
-      //     }                    
-      //   }
-      // } 
-      // else if (diff < 0.1) {
-      //   front_view_distance_ *= 2;
-      //   if (front_view_distance_ > max_front_view_distance_) {
-      //     front_view_distance_ = max_front_view_distance_;
-      //   }
-      //   std::cout << "路径直，增大前视距离： " << front_view_distance_ << "\n";
-      // }
+      if (diff > 0.5236) {
+        std::cout << color::RED << "----------------------曲线曲率过大，减少前视距离-----------------" 
+          << color::RESET << "\n";
+        // 获取与当前机器人距离最近的轨迹点Index
+        float last_dis = 9999;
+        int curr_ind = last_front_target_point_index;
+        int nearly_robot_ind = 0; 
+        while(curr_ind >= 0) {
+          float diff_x = global_plan_[curr_ind].pose.position.x  - curr_pos_x;
+          float diff_y = global_plan_[curr_ind].pose.position.y  - curr_pos_y ;
+          float curr_dis = diff_x * diff_x + diff_y * diff_y;
+          if (curr_dis > last_dis) {
+            nearly_robot_ind = curr_ind + 1;
+            break;
+          }
+          --curr_ind;
+          last_dis = curr_dis;
+        }
+        front_target_point_index_ = (last_front_target_point_index + front_target_point_index_) / 2;
+        front_view_distance_ /= 2;
+        //  循环找到最佳前视距离
+        while(1) {
+          std::cout << "nearly_robot_ind: " << nearly_robot_ind << "\n";
+          // 根据轨迹的曲率 判断这个前视点是否需要调整
+          int half_front_target_point_index = (nearly_robot_ind + front_target_point_index_) / 2; 
+          double direct1 = std::atan2(global_plan_[front_target_point_index_].pose.position.y 
+                                                                    - global_plan_[nearly_robot_ind].pose.position.y, 
+                                                                global_plan_[front_target_point_index_].pose.position.x 
+                                                                    - global_plan_[nearly_robot_ind].pose.position.x);  // [-pi, pi]
+          double direct2 = std::atan2(global_plan_[half_front_target_point_index].pose.position.y 
+                                                                    - global_plan_[nearly_robot_ind].pose.position.y, 
+                                                                global_plan_[half_front_target_point_index].pose.position.x 
+                                                                    - global_plan_[nearly_robot_ind].pose.position.x);  // [-pi, pi]
+          double diff = std::fabs(direct1 - direct2);
+          if (diff > M_PI) {
+            diff = 2 * M_PI - diff;   
+          }           
+          std::cout << "diff: " << diff << "\n"; 
+          // 如果大于30度   前视距离减半
+          if (diff > 0.5236) {
+            front_view_distance_ /= 2;
+            front_target_point_index_ = (last_front_target_point_index + front_target_point_index_) / 2;;
+            std::cout << "前视距离减半, front_view_distance_: " << front_view_distance_ 
+              << ",front_target_point_index_:" << front_target_point_index_ << "\n";
+            if (front_view_distance_ < min_front_view_distance_) {
+              front_view_distance_ = min_front_view_distance_;
+              break;
+            }
+          } else {
+            break;
+          }                    
+        }
+      } 
+      else if (diff < 0.1) {
+        front_view_distance_ *= 2;
+        if (front_view_distance_ > max_front_view_distance_) {
+          front_view_distance_ = max_front_view_distance_;
+        }
+        std::cout << "路径直，增大前视距离： " << front_view_distance_ << "\n";
+      }
     }
+    std::cout << "after update front_target_point_index_: " << front_target_point_index_ << "\n"; 
   }
-  std::cout << "front_target_point_index_: " << front_target_point_index_ << "\n"; 
   // 获得前视点位于当前机器人坐标系下的坐标
   front_target_point_in_base_ = goalToBaseFrame(global_plan_[front_target_point_index_]); 
 }
@@ -178,13 +220,12 @@ geometry_msgs::PoseStamped PurePursuitPlanner::goalToBaseFrame(
     geometry_msgs::PoseStamped goal_pose, base_pose_msg;
     goal_pose = goal_pose_msg;
     goal_pose.header.stamp = ros::Time();
-    std::cout << "前视点在global系，x：" << goal_pose.pose.position.x
-      << ",y: " << goal_pose.pose.position.y << "\n"; 
-
+    // std::cout << "前视点在global系，x：" << goal_pose.pose.position.x
+    //   << ",y: " << goal_pose.pose.position.y << "\n"; 
     try {
       base_pose_msg = tf_->transform(goal_pose, "base");
-      std::cout << "前视点在local系，x：" << base_pose_msg.pose.position.x
-      << ",y: " << base_pose_msg.pose.position.y << "\n"; 
+      // std::cout << "前视点在local系，x：" << base_pose_msg.pose.position.x
+      //   << ",y: " << base_pose_msg.pose.position.y << "\n"; 
     } catch (tf2::TransformException& ex) {
       ROS_WARN("goalToBaseFrame transform error");
       return base_pose_msg;

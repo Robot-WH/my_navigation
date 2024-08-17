@@ -133,7 +133,8 @@ namespace pure_pursuit_local_planner {
       return false;
     }
     // 判断是否需要更新预瞄点
-    dp_->UpdateFrontTargetPoint(current_pose_.pose.position.x, current_pose_.pose.position.y);  
+    dp_->UpdateFrontTargetPoint(current_pose_.pose.position.x, current_pose_.pose.position.y, 
+                                                                    current_pose_.pose.orientation);  
     // 计算DWA规划器的速度命令
     bool isOk = dp_->CalculateMotion(cmd_vel);
     // 可视化前视点
