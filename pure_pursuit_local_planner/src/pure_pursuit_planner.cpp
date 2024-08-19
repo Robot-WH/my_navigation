@@ -20,7 +20,7 @@ void PurePursuitPlanner::reconfigure(PurePursuitPlannerConfig &config)
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 PurePursuitPlanner::PurePursuitPlanner(std::string name, tf2_ros::Buffer* tf, base_local_planner::LocalPlannerUtil *planner_util) :
-    tf_(tf), linear_v_max_(0.5)
+    tf_(tf), linear_v_max_(1)
 {
   ros::NodeHandle private_nh("~/" + name);
   //Assuming this planner is being run within the navigation stack, we can
@@ -45,14 +45,14 @@ PurePursuitPlanner::PurePursuitPlanner(std::string name, tf2_ros::Buffer* tf, ba
 
   state_ = State::begin_align;    
   front_view_distance_ = min_front_view_distance_;  
+  dec_t_ = 3;
 }
-
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 bool PurePursuitPlanner::setPlan(const std::vector<geometry_msgs::PoseStamped>& orig_global_plan) {
   global_plan_ = orig_global_plan;
   front_target_point_index_ = 0;
-  front_view_distance_ = min_front_view_distance_;  
+  front_view_distance_ = default_front_view_distance_;  
   state_ = State::begin_align;
   return true;   
 }
@@ -104,79 +104,81 @@ void PurePursuitPlanner::UpdateFrontTargetPoint(const float& curr_pos_x, const f
         last_front_target_point_index = front_target_point_index_;
         front_target_point_index_ *= 2;  
       }
-      // 评估轨迹曲率  
-      // 获取当前机器人的朝向角，
-      tf2::Quaternion tf_q(curr_pos_rot.x, curr_pos_rot.y, curr_pos_rot.z, curr_pos_rot.w);  
-      tf2::Matrix3x3 m(tf_q);  
-      double roll, pitch, robot_yaw;  
-      m.getRPY(roll, pitch, robot_yaw);  
-      std::cout << "评估轨迹!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << "\n";
-      std::cout << "robot robot_yaw: " << robot_yaw << "\n";
-      // 上次前视点与更新后的前视点的连线夹角  
-      double direct = std::atan2(global_plan_[front_target_point_index_].pose.position.y 
-                                                                - global_plan_[last_front_target_point_index].pose.position.y, 
-                                                              global_plan_[front_target_point_index_].pose.position.x 
-                                                                - global_plan_[last_front_target_point_index].pose.position.x); 
-      double diff = std::fabs(direct - robot_yaw);
-      if (diff > M_PI) {
-        diff = 2 * M_PI - diff;   
-      }         
-      std::cout << "direct: " << direct << "\n"
-        << "diff: " << diff << "\n"; 
-
-      // 如果大于60度   则需要减半前视距离
-      if (diff > 1) {
-        std::cout << color::RED << "----------------------曲线曲率过大，减少前视距离-----------------" 
-          << color::RESET << "\n";
-        // 获取与当前机器人距离最近的轨迹点Index
-        float last_dis = 9999;
-        int curr_ind = last_front_target_point_index;
-        int nearly_robot_ind = 0; 
-        while(curr_ind >= 0) {
-          float diff_x = global_plan_[curr_ind].pose.position.x  - curr_pos_x;
-          float diff_y = global_plan_[curr_ind].pose.position.y  - curr_pos_y ;
-          float curr_dis = diff_x * diff_x + diff_y * diff_y;
-          if (curr_dis > last_dis) {
-            nearly_robot_ind = curr_ind + 1;
-            break;
-          }
-          --curr_ind;
-          last_dis = curr_dis;
-        }
-        //  循环找到最佳前视距离
-        while(1) {
-          std::cout << "nearly_robot_ind: " << nearly_robot_ind << "\n";
-          front_target_point_index_ = (last_front_target_point_index + front_target_point_index_) / 2;
-          front_view_distance_ /= 2;
-          std::cout << "前视距离减半, front_view_distance_: " << front_view_distance_ 
-              << ",front_target_point_index_:" << front_target_point_index_ << "\n";
-          if (front_view_distance_ < min_front_view_distance_) {
-            front_view_distance_ = min_front_view_distance_;
-            break;
-          }
-          // 根据轨迹的曲率 判断这个前视点是否需要调整
-          int half_front_target_point_index = (nearly_robot_ind + front_target_point_index_) / 2; 
-          double direct = std::atan2(global_plan_[front_target_point_index_].pose.position.y 
-                                                                    - global_plan_[half_front_target_point_index].pose.position.y, 
+      // 只有途中跑阶段才评估运动曲率情况
+      if (state_ == State::mid_run) {
+        // 评估轨迹曲率  
+        // 获取当前机器人的朝向角，
+        tf2::Quaternion tf_q(curr_pos_rot.x, curr_pos_rot.y, curr_pos_rot.z, curr_pos_rot.w);  
+        tf2::Matrix3x3 m(tf_q);  
+        double roll, pitch, robot_yaw;  
+        m.getRPY(roll, pitch, robot_yaw);  
+        std::cout << "评估轨迹!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << "\n";
+        std::cout << "robot robot_yaw: " << robot_yaw << "\n";
+        // 上次前视点与更新后的前视点的连线夹角  
+        double direct = std::atan2(global_plan_[front_target_point_index_].pose.position.y 
+                                                                  - global_plan_[last_front_target_point_index].pose.position.y, 
                                                                 global_plan_[front_target_point_index_].pose.position.x 
-                                                                    - global_plan_[half_front_target_point_index].pose.position.x);  // [-pi, pi]
-          double diff = std::fabs(direct - robot_yaw);
-          if (diff > M_PI) {
-            diff = 2 * M_PI - diff;   
-          }           
-          std::cout << "diff: " << diff << "\n"; 
-          // 如果大于60度   前视距离减半
-          if (diff < 1) {
-            break;
-          }                    
+                                                                  - global_plan_[last_front_target_point_index].pose.position.x); 
+        double diff = std::fabs(direct - robot_yaw);
+        if (diff > M_PI) {
+          diff = 2 * M_PI - diff;   
+        }         
+        std::cout << "direct: " << direct << "\n"
+          << "diff: " << diff << "\n"; 
+
+        // 如果大于60度   则需要减半前视距离
+        if (diff > 1) {
+          std::cout << color::RED << "----------------------曲线曲率过大，减少前视距离-----------------" 
+            << color::RESET << "\n";
+          // 获取与当前机器人距离最近的轨迹点Index
+          float last_dis = 9999;
+          int curr_ind = last_front_target_point_index;
+          int nearly_robot_ind = 0; 
+          while(curr_ind >= 0) {
+            float diff_x = global_plan_[curr_ind].pose.position.x  - curr_pos_x;
+            float diff_y = global_plan_[curr_ind].pose.position.y  - curr_pos_y ;
+            float curr_dis = diff_x * diff_x + diff_y * diff_y;
+            if (curr_dis > last_dis) {
+              nearly_robot_ind = curr_ind + 1;
+              break;
+            }
+            --curr_ind;
+            last_dis = curr_dis;
+          }
+          //  循环找到最佳前视距离
+          while(1) {
+            std::cout << "nearly_robot_ind: " << nearly_robot_ind << "\n";
+            front_target_point_index_ = (last_front_target_point_index + front_target_point_index_) / 2;
+            front_view_distance_ /= 2;
+            std::cout << "前视距离减半, front_view_distance_: " << front_view_distance_ 
+                << ",front_target_point_index_:" << front_target_point_index_ << "\n";
+            if (front_view_distance_ < min_front_view_distance_) {
+              front_view_distance_ = min_front_view_distance_;
+              break;
+            }
+            // 根据轨迹的曲率 判断这个前视点是否需要调整
+            int half_front_target_point_index = (nearly_robot_ind + front_target_point_index_) / 2; 
+            double direct = std::atan2(global_plan_[front_target_point_index_].pose.position.y 
+                                                                      - global_plan_[half_front_target_point_index].pose.position.y, 
+                                                                  global_plan_[front_target_point_index_].pose.position.x 
+                                                                      - global_plan_[half_front_target_point_index].pose.position.x);  // [-pi, pi]
+            double diff = std::fabs(direct - robot_yaw);
+            if (diff > M_PI) {
+              diff = 2 * M_PI - diff;   
+            }           
+            std::cout << "diff: " << diff << "\n"; 
+            // 如果大于60度   前视距离减半
+            if (diff < 1) {
+              break;
+            }                    
+          }
+        } else if (diff < 0.5) {
+          front_view_distance_ *= 1.5;
+          if (front_view_distance_ > max_front_view_distance_) {
+            front_view_distance_ = max_front_view_distance_;
+          }
+          std::cout << "路径直，增大前视距离： " << front_view_distance_ << "\n";
         }
-      } 
-      else if (diff < 0.5) {
-        front_view_distance_ *= 1.5;
-        if (front_view_distance_ > max_front_view_distance_) {
-          front_view_distance_ = max_front_view_distance_;
-        }
-        std::cout << "路径直，增大前视距离： " << front_view_distance_ << "\n";
       }
     }
     std::cout << "after update front_target_point_index_: " << front_target_point_index_ << "\n"; 
@@ -251,38 +253,37 @@ bool PurePursuitPlanner::CalculateMotion(geometry_msgs::Twist& cmd_vel) {
       // 冲出去就停下
       linear_v = 0;  
     } else {
-      static float incre_acc = 0;   // 减速度 
+      static float begin_decelerate_v = 0;   // 减速度 
       // 要求在1s中将车停下  
       // 继续分段
-      // if (l_2 < 0.01) {
-      //   if (l_2 < 0.0001) {     // 0.01m距离时  
-      //     linear_v = 100 * l_2; 
-      //   } else {
-      //     linear_v = std::sqrt(l_2); 
-      //   }
-      // } else if (l < 0.5 * linear_v) {
-      //   if (linear_v > incre_acc) {
-      //     incre_acc = linear_v;
-      //   }
-      //   linear_v -= 0.1 * incre_acc;
-      // } else {
-      //   // 加速时需要限制加速度
-      //   if (linear_v < linear_v_max_) {
-      //     linear_v += 0.02;       // 10hz      加速度 0.2m/s
-      //   }
-      //   incre_acc = 0;
-      // }
       if (l_2 < 0.01) {
         if (l_2 < 0.0001) {     // 0.01m距离时  
           linear_v = 100 * l_2; 
         } else {
           linear_v = std::sqrt(l_2); 
+        }      
+      } else if (l < 0.5 * linear_v * dec_t_) {   // 机器人的最大速度和前视距离有关  
+        // 求解速度和距离的关系  (t_dec 减速时间)
+        // 0.5 * linear_v  * t_dec - l  = 0.5 * (linear_v + curr_v) * dt
+        //                                    = 0.5 * (linear_v + curr_v) * (linear_v - curr_v) /  a
+        //                                   = 0.5 * (linear_v^2- curr_v^2) / ((linear_v - 0) / t_dec)
+        //                                   = 0.5 * (linear_v^2- curr_v^2) * t_dec / linear_v 
+        // 0.5 * curr_v^2 * t_dec =  0.5 * linear_v^2 * t_dec - (0.5 * linear_v * t_dec- l) * linear_v;
+        // curr_v^2 =  linear_v^2 - (linear_v - 2 * l / t_dec) * linear_v;                 
+        //                     =  2 * l * linear_v / t_dec;          
+        if (linear_v > begin_decelerate_v) {
+          begin_decelerate_v = linear_v;
         }
+        float dec_acc = begin_decelerate_v / dec_t_;    // 减速度
+        linear_v = std::sqrt(2 * l * dec_acc);        
       } else {
         // 加速时需要限制加速度
         if (linear_v < linear_v_max_) {
           linear_v += 0.02;       // 10hz      加速度 0.2m/s
         }
+        if (begin_decelerate_v > 0) {
+          begin_decelerate_v = 0;
+        }  
       }
     }
     // 确定角速度

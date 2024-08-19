@@ -87,8 +87,10 @@ namespace pure_pursuit_local_planner {
       std::string frame_id_;
       int front_target_point_index_ = -1;     // 前向点在全局路径下的index
       float front_view_distance_ = 0;   
-      float max_front_view_distance_ = 1.0;
+      float max_front_view_distance_ = 2.0;
+      float default_front_view_distance_ = 0.3;
       float min_front_view_distance_ = 0.1;
+      float dec_t_ = 1.0;    // 减速时间
       std::vector<geometry_msgs::PoseStamped> global_plan_;
       geometry_msgs::PoseStamped front_target_point_in_base_; 
 
