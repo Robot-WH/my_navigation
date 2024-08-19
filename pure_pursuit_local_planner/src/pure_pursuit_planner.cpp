@@ -20,10 +20,9 @@ void PurePursuitPlanner::reconfigure(PurePursuitPlannerConfig &config)
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 PurePursuitPlanner::PurePursuitPlanner(std::string name, tf2_ros::Buffer* tf, base_local_planner::LocalPlannerUtil *planner_util) :
-    tf_(tf), linear_v_max_(0.2)
+    tf_(tf), linear_v_max_(0.5)
 {
   ros::NodeHandle private_nh("~/" + name);
-
   //Assuming this planner is being run within the navigation stack, we can
   //just do an upward search for the frequency at which its being run. This
   //also allows the frequency to be overwritten locally.
@@ -106,26 +105,6 @@ void PurePursuitPlanner::UpdateFrontTargetPoint(const float& curr_pos_x, const f
         front_target_point_index_ *= 2;  
       }
       // 评估轨迹曲率  
-      // double direct1 = std::atan2(global_plan_[front_target_point_index_].pose.position.y - curr_pos_y, 
-      //                                                         global_plan_[front_target_point_index_].pose.position.x - curr_pos_x);  // [-pi, pi]
-      // double direct2 = std::atan2(global_plan_[last_front_target_point_index].pose.position.y - curr_pos_y, 
-      //                                                       global_plan_[last_front_target_point_index].pose.position.x - curr_pos_x);  // [-pi, pi]
-      // double diff = std::fabs(direct1 - direct2);
-      // if (diff > M_PI) {
-      //   diff = 2 * M_PI - diff;   
-      // }         
-
-      // std::cout << "front_target_point_index_: " << front_target_point_index_ << "\n"
-      //   << "last_front_target_point_index: " << last_front_target_point_index << "\n"
-      //   << "global_plan_[front_target_point_index_].y: " << global_plan_[front_target_point_index_].pose.position.y << "\n"
-      //   << "curr_pos_y: " << curr_pos_y << "\n"
-      //   << "global_plan_[front_target_point_index_].x:" << global_plan_[front_target_point_index_].pose.position.x << "\n"
-      //   << "curr_pos_x: " << curr_pos_x << "\n"
-      //   << "global_plan_[last_front_target_point_index].y: " << global_plan_[last_front_target_point_index].pose.position.y << "\n"
-      //   << "global_plan_[last_front_target_point_index].x: " << global_plan_[last_front_target_point_index].pose.position.x << "\n"
-      //   << "direct1: " << direct1 << "\n"
-      //   << "direct2: " << direct2 << "\n"
-      //   << "diff: " << diff << "\n"; 
       // 获取当前机器人的朝向角，
       tf2::Quaternion tf_q(curr_pos_rot.x, curr_pos_rot.y, curr_pos_rot.z, curr_pos_rot.w);  
       tf2::Matrix3x3 m(tf_q);  
@@ -145,8 +124,8 @@ void PurePursuitPlanner::UpdateFrontTargetPoint(const float& curr_pos_x, const f
       std::cout << "direct: " << direct << "\n"
         << "diff: " << diff << "\n"; 
 
-      // 如果大于30度   则需要减半前视距离
-      if (diff > 0.5236) {
+      // 如果大于60度   则需要减半前视距离
+      if (diff > 1) {
         std::cout << color::RED << "----------------------曲线曲率过大，减少前视距离-----------------" 
           << color::RESET << "\n";
         // 获取与当前机器人距离最近的轨迹点Index
@@ -186,14 +165,14 @@ void PurePursuitPlanner::UpdateFrontTargetPoint(const float& curr_pos_x, const f
             diff = 2 * M_PI - diff;   
           }           
           std::cout << "diff: " << diff << "\n"; 
-          // 如果大于30度   前视距离减半
-          if (diff < 0.5236) {
+          // 如果大于60度   前视距离减半
+          if (diff < 1) {
             break;
           }                    
         }
       } 
-      else if (diff < 0.1) {
-        front_view_distance_ *= 2;
+      else if (diff < 0.5) {
+        front_view_distance_ *= 1.5;
         if (front_view_distance_ > max_front_view_distance_) {
           front_view_distance_ = max_front_view_distance_;
         }
@@ -265,15 +244,35 @@ bool PurePursuitPlanner::CalculateMotion(geometry_msgs::Twist& cmd_vel) {
     std::cout << "state_ == State::mid_run" << "\n"; 
     // 确定线速度
     float l_2 = front_target_point_in_base_.pose.position.x * front_target_point_in_base_.pose.position.x 
-                    + front_target_point_in_base_.pose.position.y * front_target_point_in_base_.pose.position.y; 
+                            + front_target_point_in_base_.pose.position.y * front_target_point_in_base_.pose.position.y; 
+    float l = std::sqrt(l_2);
     // 更新速度，与目标点越近速度越慢  
-    if (front_target_point_in_base_.pose.position.x < 0.001) {
+    if (front_target_point_in_base_.pose.position.x < 0.00001) {
       // 冲出去就停下
       linear_v = 0;  
     } else {
-      // 这里是0.1m 内  开始减速
+      static float incre_acc = 0;   // 减速度 
+      // 要求在1s中将车停下  
+      // 继续分段
+      // if (l_2 < 0.01) {
+      //   if (l_2 < 0.0001) {     // 0.01m距离时  
+      //     linear_v = 100 * l_2; 
+      //   } else {
+      //     linear_v = std::sqrt(l_2); 
+      //   }
+      // } else if (l < 0.5 * linear_v) {
+      //   if (linear_v > incre_acc) {
+      //     incre_acc = linear_v;
+      //   }
+      //   linear_v -= 0.1 * incre_acc;
+      // } else {
+      //   // 加速时需要限制加速度
+      //   if (linear_v < linear_v_max_) {
+      //     linear_v += 0.02;       // 10hz      加速度 0.2m/s
+      //   }
+      //   incre_acc = 0;
+      // }
       if (l_2 < 0.01) {
-        // 继续分段
         if (l_2 < 0.0001) {     // 0.01m距离时  
           linear_v = 100 * l_2; 
         } else {
@@ -282,7 +281,7 @@ bool PurePursuitPlanner::CalculateMotion(geometry_msgs::Twist& cmd_vel) {
       } else {
         // 加速时需要限制加速度
         if (linear_v < linear_v_max_) {
-          linear_v += 0.02;  
+          linear_v += 0.02;       // 10hz      加速度 0.2m/s
         }
       }
     }
