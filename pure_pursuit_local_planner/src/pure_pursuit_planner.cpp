@@ -1,7 +1,7 @@
 #include <pure_pursuit_local_planner/pure_pursuit_planner.h>
 #include <base_local_planner/goal_functions.h>
 #include <cmath>
-//for computing path distance
+// for computing path distance
 #include <queue>
 #include <angles/angles.h>
 #include <ros/ros.h>
@@ -98,11 +98,6 @@ void PurePursuitPlanner::UpdateFrontTargetPoint(const float& curr_pos_x, const f
             << ", distance: " << distance << "\n";  
           break;
         }
-      }
-      // 处理轨迹起始时的特殊情况
-      if (last_front_target_point_index == 0) {
-        last_front_target_point_index = front_target_point_index_;
-        front_target_point_index_ *= 2;  
       }
       // 只有途中跑阶段才评估运动曲率情况
       if (state_ == State::mid_run) {
@@ -256,13 +251,13 @@ bool PurePursuitPlanner::CalculateMotion(geometry_msgs::Twist& cmd_vel) {
       static float begin_decelerate_v = 0;   // 减速度 
       // 要求在1s中将车停下  
       // 继续分段
-      if (l_2 < 0.01) {
+      if (l_2 < 0.0025) {
         if (l_2 < 0.0001) {     // 0.01m距离时  
           linear_v = 100 * l_2; 
         } else {
           linear_v = std::sqrt(l_2); 
         }      
-      } else if (l < 0.5 * linear_v * dec_t_) {   // 机器人的最大速度和前视距离有关  
+      } else if (l < 0.5 * linear_v * dec_t_ + 0.01) {   // 机器人的最大速度和前视距离有关  , + 0.01 是为了增大裕度  
         // 求解速度和距离的关系  (t_dec 减速时间)
         // 0.5 * linear_v  * t_dec - l  = 0.5 * (linear_v + curr_v) * dt
         //                                    = 0.5 * (linear_v + curr_v) * (linear_v - curr_v) /  a
@@ -276,6 +271,7 @@ bool PurePursuitPlanner::CalculateMotion(geometry_msgs::Twist& cmd_vel) {
         }
         float dec_acc = begin_decelerate_v / dec_t_;    // 减速度
         linear_v = std::sqrt(2 * l * dec_acc);        
+        std::cout << color::YELLOW << "减速 -------------------------------------------------------------" << color::RESET << "\n";
       } else {
         // 加速时需要限制加速度
         if (linear_v < linear_v_max_) {
@@ -284,6 +280,7 @@ bool PurePursuitPlanner::CalculateMotion(geometry_msgs::Twist& cmd_vel) {
         if (begin_decelerate_v > 0) {
           begin_decelerate_v = 0;
         }  
+        std::cout << color::GREEN << "加速 ++++++++++++++++++++++++++++++++++++++" << color::RESET << "\n";
       }
     }
     // 确定角速度
